@@ -199,8 +199,9 @@ h1 {
   height: 780vh;
 }
 
-/* Full bleed: the scene is the page here, edge to edge, with the text track
-   laid over it rather than beside it. */
+/* Three bands in a column: the line, the picture, the readout. The picture is
+   the only one that flexes, so the type above it and the readout below it keep
+   their size and the frame takes whatever height is left. */
 .pin-stage {
   position: sticky;
   top: 0;
@@ -208,6 +209,27 @@ h1 {
   width: 100%;
   overflow: hidden;
   background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(18px, 2.4vh, 32px);
+  padding: clamp(20px, 4vh, 44px) clamp(16px, 5vw, 64px);
+}
+
+/* The frame. The scene is no longer the page — it is a picture on it, held in
+   the middle with the line above and the readout below.
+
+   `min-height: 0` is what lets it actually shrink: a flex item defaults to its
+   content's minimum, and without this the frame refuses to give height back on a
+   short window and pushes the readout off the bottom. */
+.frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: min(1180px, 100%);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  overflow: hidden;
 }
 
 /* The player creates its canvas inside this element and sizes it to fit.
@@ -238,49 +260,44 @@ h1 {
 }
 
 /* ---------------------------------------------------------------
-   The text — one floating box held at the right of the stage. It
-   does not move: scroll swaps what is in it, one beat crossfading
-   into the next in place.
+   The line — one caption at a time, large and centred above the
+   frame. It does not move: scroll swaps what is in it, one beat
+   crossfading into the next in place.
 ------------------------------------------------------------------ */
-/* Inside the sticky stage rather than spanning the section, so it stays put in
-   the viewport for the whole pinned scroll. */
+/* Above the picture rather than over it, so it needs no scrim, no blur and no
+   border to separate itself from the scene — it is simply on the page. That is
+   also why `safeArea()` in main.js no longer reserves anything: nothing overlaps
+   the frame any more, and the piece gets all of it. */
 .pin-text {
-  position: absolute;
-  top: 50%;
-  /* On the right, but held well off the edge — its inner edge lands on the
-     centre line, and the piece gets the half of the frame to the left of it.
-     `safeArea()` in main.js reads this out of the layout, so this offset is the
-     one place the balance is set. */
-  right: 12vw;
-  transform: translateY(-50%);
-  width: min(26%, 350px);
-  padding: 24px 26px;
-  background: rgba(255, 255, 255, 0.82);
-  /* The scene is white, so the box needs an edge and a lift to read as a
-     surface over it rather than as a patch of the ground. */
-  backdrop-filter: blur(10px) saturate(1.05);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  border: 1px solid var(--line);
-  box-shadow: 0 14px 44px rgba(19, 19, 22, 0.09);
-  /* Over the scene, not beside it. Clicks and drags belong to the view. */
-  z-index: 2;
+  width: min(880px, 100%);
+  text-align: center;
+  /* The type is the loudest thing here; the frame edge below should not have to
+     compete with it for the same few pixels. */
+  flex: none;
   pointer-events: none;
 }
 
-/* Beats are stacked on top of each other, so the stack has no height of its
-   own — main.js sets it from whichever beat is showing, and the box eases
-   between the two rather than snapping. */
+/* Beats are stacked on top of each other, so the stack has no height of its own
+   — main.js sets it once, to the tallest line in the script.
+
+   Deliberately not transitioned. This band sits above the frame and the frame
+   takes the height that is left, so animating this would animate the canvas's
+   size, re-baking every shot on every frame of the animation. It is a fixed
+   reservation now, and the only thing that changes it is a resize. */
 .beat-stack {
   position: relative;
   height: 0;
-  transition: height 340ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Every beat occupies the same spot; only the active one is visible. The small
-   rise on the way in gives the swap a direction without moving the box. */
+   rise on the way in gives the swap a direction without moving the box.
+
+   Anchored to the bottom of the reserved band rather than the top, so every
+   caption sits the same distance above the frame and the slack a short line
+   leaves opens upwards, away from the picture. */
 .beat {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   opacity: 0;
@@ -293,37 +310,58 @@ h1 {
   transform: none;
 }
 
+/* Display size. It scales with the window because it has to survive two lines of
+   the longest caption on a laptop without eating the frame's height. */
 .beat p {
   margin: 0;
-  font: 400 18px/1.45 var(--condensed);
+  font: 500 clamp(24px, 2.9vw, 44px) / 1.16 var(--condensed);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
   color: var(--ink);
 }
 
-/* What the camera is doing, as against what the piece is doing. */
+/* What the camera is doing, as against what the piece is doing. Quieter, but at
+   this size the weight carries the difference better than the colour alone. */
 .beat[data-kind='camera'] p {
   color: var(--mute);
-  font-size: 17px;
+  font-weight: 400;
 }
 
 /* ---------------------------------------------------------------
-   The drive readout — five rows under the prose, one per body,
-   moving continuously with the scroll while the text above it
-   changes only on a beat.
+   The drive readout — five rows below the frame, one per body,
+   moving continuously with the scroll while the line above the
+   frame changes only on a beat.
 ------------------------------------------------------------------ */
+/* The band it sits in. Fixed to its content's height so the frame above gets
+   everything else, and matched to the frame's width so the two edges line up. */
+.readout {
+  flex: none;
+  width: min(1180px, 100%);
+}
+
+/* Laid out in a row now that it is under a wide frame rather than inside a
+   narrow box: five units across, which also keeps this band short enough to
+   leave the picture most of the window. */
 .drives {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0 clamp(12px, 2vw, 28px);
+  align-items: start;
 }
 
 .drives-legend {
+  /* Spans the row of units and sits above them. */
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
+  justify-content: center;
   /* Wraps, because the note does not fit beside the swatches at this width. */
   flex-wrap: wrap;
   gap: 14px;
   row-gap: 8px;
-  margin: 0 0 18px;
+  margin: 0 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
   font: 500 11px/1 var(--condensed);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -342,30 +380,45 @@ h1 {
   border-radius: 2px;
 }
 
-/* Always its own line, rather than whatever is left beside the swatches. */
+/* Always its own line, rather than whatever is left beside the swatches — and
+   centred with them now that the legend is a centred band under the frame. */
 .drives-note {
   flex-basis: 100%;
+  text-align: center;
   text-transform: none;
   letter-spacing: 0.02em;
   opacity: 0.75;
 }
 
-/* One body per row, and they need to read as five separate readings rather than
-   as a block of stripes — so the rows are spaced further apart than the two
-   bars within any one of them. */
+/* One body per cell, five across under the frame. Each is a label line — who it
+   is, and what it is doing — over that body's two bars. Stacked rather than
+   strung out in a row because a fifth of the frame's width is not enough to put
+   a name, two bars and a state word side by side and have any of them readable.
+
+   The DOM order is dot, name, bars, state, which is the order that reads aloud;
+   the areas put the state back up on the label line where it belongs. */
 .drive-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-areas:
+    'dot name state'
+    'bars bars bars';
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
+  gap: 8px 7px;
+  padding: 0;
 }
 
-.drive-row:first-of-type {
-  padding-top: 0;
+.drive-dot {
+  grid-area: dot;
 }
-
-.drive-row:last-of-type {
-  padding-bottom: 0;
+.drive-name {
+  grid-area: name;
+}
+.drive-bars {
+  grid-area: bars;
+}
+.drive-state {
+  grid-area: state;
 }
 
 .drive-dot {
@@ -440,12 +493,17 @@ h1 {
   background: var(--drive-p);
 }
 
+/* Right-aligned to the cell's edge, and no fixed width — it shares the label
+   line with the name now, so it takes whatever is left rather than reserving a
+   column that a fifth-width cell cannot spare. */
 .drive-state {
-  flex: none;
-  width: 66px;
+  min-width: 0;
   text-align: right;
-  font: 400 14px/1.2 var(--condensed);
+  font: 400 13px/1.2 var(--condensed);
   color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Engaging is the thing the whole piece is about; the other two are the resting
@@ -455,58 +513,49 @@ h1 {
   font-weight: 500;
 }
 
-/* Narrow: there is no room for a box beside the piece, so it runs the full
-   width and sits low, clear of where the bodies hang. The stage stays full
-   bleed. */
+/* Narrow: the three bands stay, but the readout cannot hold five units across a
+   phone — each cell would be ~60px. It wraps to a grid instead, and the caption
+   gives back some size so the frame keeps most of the window. */
 @media (max-width: 900px) {
-  .pin-text {
-    top: auto;
-    bottom: 7svh;
-    left: 6vw;
-    right: 6vw;
-    width: auto;
-    transform: none;
-    padding: 24px 24px;
-  }
-
-  /* A phone has the width to carry the type the desktop box no longer has room
-     for, and the box is the only thing on screen with it. */
   .beat p {
-    font-size: 19px;
+    font-size: clamp(20px, 4.6vw, 30px);
   }
 
-  .beat[data-kind='camera'] p {
-    font-size: 18px;
-  }
-
-  /* The box is bottom-anchored and the camera gets whatever is above it, so on
-     a short window the readout gives some of its slack back rather than pushing
-     the piece off the top. The rows all stay, and stay separated. */
   .drives {
-    margin-top: 22px;
-    padding-top: 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
   }
 
-  .drives-legend {
-    margin-bottom: 16px;
-  }
-
+  /* The note is the first thing to go: at this width it wraps to three lines and
+     costs the picture more than it explains. */
   .drives-note {
     display: none;
   }
 
-  .drive-row {
-    padding: 9px 0;
+  .drives-legend {
+    margin-bottom: 4px;
+  }
+}
+
+/* Shorter than it is narrow — a laptop in a small window. The picture is the
+   point, so the type stops scaling with the width and the bands tighten. */
+@media (max-height: 700px) {
+  .pin-stage {
+    gap: 12px;
+    padding: 14px clamp(16px, 5vw, 64px);
   }
 
-  .drive-name {
-    width: 22px;
-    font-size: 14px;
+  .beat p {
+    font-size: clamp(19px, 2.2vw, 26px);
   }
 
-  .drive-state {
-    width: 72px;
-    font-size: 15px;
+  .drives-legend {
+    padding-top: 10px;
+    margin-bottom: 8px;
+  }
+
+  .drives-note {
+    display: none;
   }
 }
 

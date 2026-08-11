@@ -240,6 +240,10 @@ const stage = document.getElementById('stage');
 const errorEl = document.getElementById('stage-error');
 const beatsEl = document.getElementById('beats');
 const beatBox = document.getElementById('beat-box');
+// The band under the frame. The readout used to hang off the bottom of the
+// caption box; now the caption is display type above the picture and this is its
+// own band below it.
+const driveSlot = document.getElementById('drive-slot') ?? beatBox;
 const pinSection = document.getElementById('pin-section');
 
 function fail(message) {
@@ -980,9 +984,6 @@ const _origin = new Vec();
 // Shots are solved on a stand-in so a half-solved pose is never what gets drawn.
 const scratch = viewer.camera.clone();
 
-// Clearance between the piece and the text, as a fraction of the window.
-const SAFE_GUTTER = 0.03;
-
 // Clearance between the piece and the edges of the *window*, in NDC — so 0.1 is
 // a twentieth of the frame held back on each side.
 //
@@ -994,76 +995,25 @@ const SAFE_GUTTER = 0.03;
 const SAFE_EDGE = 0.1;
 
 /**
- * The part of the frame the text is NOT using, in NDC (−1…1, y up).
+ * The part of the frame the piece may be fitted into, in NDC (−1…1, y up).
  *
- * The stage is full bleed, so the beats lie over the scene rather than beside
- * it. Framing the piece into the middle of the window would run the bodies
- * straight under the words — measured, the piece's right edge reached 1669px on
- * a 1280px window with the column starting at 768. So the fit is given this
- * region instead, and centres the piece inside it.
+ * The whole frame, less a margin at the edges. It used to be less than that:
+ * the stage was full bleed and the caption lay *over* the scene, so this read
+ * the caption box out of the live layout and handed back whatever rectangle was
+ * left beside or above it — otherwise the bodies ran straight under the words.
  *
- * Read from the live layout rather than hard-coded, so it follows the CSS: a
- * box beside the piece on a wide window, one along the bottom on a narrow one.
- * The box holds still through the whole scroll, so what it covers is one
- * rectangle rather than a swept region — only its height changes, with the
- * caption in it.
+ * The caption is now display type in its own band above the frame and the
+ * readout has a band below, so nothing overlaps the picture and the piece gets
+ * all of it. If anything is ever floated back over the scene, this is the place
+ * that has to know.
  */
 function safeArea() {
-  const full = {
+  return {
     x0: -1 + SAFE_EDGE,
     x1: 1 - SAFE_EDGE,
     y0: -1 + SAFE_EDGE,
     y1: 1 - SAFE_EDGE,
   };
-  const canvas = viewer.renderer.domElement;
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  const box = document.querySelector('.pin-text');
-  if (!box || width === 0 || height === 0) return full;
-  if (box.offsetWidth === 0) return full;
-
-  // Measured against the stage the box is positioned in, not against the
-  // viewport: the stage is sticky, so its own coordinates hold still while a
-  // `getBoundingClientRect` here would read wherever the page happens to be
-  // scrolled to at bake time — which is not necessarily anywhere near the
-  // pinned range.
-  //
-  // Wide: the box sits to one side, and which side is read off the layout
-  // rather than assumed, so moving it across in the stylesheet moves the piece
-  // with it instead of framing it straight underneath.
-  if (box.offsetWidth < width * 0.6) {
-    const near = box.offsetLeft;
-    const far = box.offsetLeft + box.offsetWidth;
-    if (near > width - far) {
-      // Box on the right: keep everything left of it.
-      const edge = (near / width - SAFE_GUTTER) * 2 - 1;
-      return { ...full, x1: Math.max(edge, -0.2) };
-    }
-    // Box on the left: keep everything right of it.
-    const edge = (far / width + SAFE_GUTTER) * 2 - 1;
-    return { ...full, x0: Math.min(edge, 0.2) };
-  }
-
-  // Narrow: the box is full width and sits low (see the 900px media query), so
-  // reserve the frame above it instead.
-  //
-  // Against the tallest it can get, not the height it happens to be. The box is
-  // bottom-anchored here, so a longer caption grows it upwards — and the shots
-  // are baked once, so reserving only for the caption that is showing puts the
-  // piece behind the box the moment a longer one arrives.
-  const edge = 1 - (worstCaseTop(box) / height - SAFE_GUTTER) * 2;
-  return { ...full, y0: Math.min(edge, 0.2) };
-}
-
-/** How high the box's top edge reaches when the longest caption is in it. */
-function worstCaseTop(box) {
-  const stack = box.querySelector('.beat-stack');
-  if (!stack) return box.offsetTop;
-  let tallest = 0;
-  for (const beat of stack.children) tallest = Math.max(tallest, beat.offsetHeight);
-  // The rendered height can be mid-transition; the set height is the intent.
-  const showing = parseFloat(stack.style.height) || stack.offsetHeight;
-  return box.offsetTop - Math.max(0, tallest - showing);
 }
 
 /**
@@ -1381,18 +1331,28 @@ beats.forEach((beat, i) => {
 });
 
 /**
- * The box holds still, so the beats are stacked one on top of the other and the
- * stack has no height of its own. Give it the height of whichever beat is
- * showing and the box eases open or closed around a longer or shorter line
- * instead of clipping it.
+ * Reserve the caption band once, for the *longest* line in the script.
  *
- * Measured rather than fixed because the lines are written from the recording:
- * how many of them there are and how long they run is not known here.
+ * The beats are stacked on top of each other, so the stack has no height of its
+ * own and something has to give it one. It used to be given the height of
+ * whichever beat was showing, easing open and closed around each line.
+ *
+ * That cannot work here, and the reason is worth keeping: this band is a flex
+ * item above the frame, and the frame takes the height that is left. So a
+ * caption going from one line to two shrank the frame, which resized the canvas,
+ * which re-baked every shot against the new aspect — the whole scene jumped
+ * while the text was still animating. Reserving the tallest line up front means
+ * the band never changes size, so the frame never does either, and a two-line
+ * caption arrives without touching the picture.
+ *
+ * The cost is a little empty space above the short lines, which is invisible on
+ * a white page. Measured rather than fixed because the lines are written from
+ * the recording: how many there are and how long they run is not known here.
  */
-function sizeToActiveBeat() {
-  const active = beats[currentBeat];
-  if (!active) return;
-  beatsEl.style.height = `${active.el.offsetHeight}px`;
+function reserveBeatBand() {
+  let tallest = 0;
+  for (const beat of beatsEl.children) tallest = Math.max(tallest, beat.offsetHeight);
+  if (tallest > 0) beatsEl.style.height = `${tallest}px`;
 }
 
 let currentBeat = -1;
@@ -1405,12 +1365,15 @@ function updateBeats(progress) {
   if (next === currentBeat) return;
   currentBeat = next;
   beats.forEach((beat, i) => beat.el.classList.toggle('is-active', i === next));
-  sizeToActiveBeat();
+  // Nothing to resize: the band is already as tall as the longest line.
 }
 
 // Show the first beat straight away: the box is a fixed piece of the stage, and
 // an empty one would be visible the moment the stage is.
 updateBeats(0);
+// And give the band its height now rather than waiting on the observer below,
+// so the frame is never laid out against a zero-height caption.
+reserveBeatBand();
 
 // A line's height is only meaningful once the box has a width to wrap it in and
 // the condensed face has arrived — measured before either, the first beat came
@@ -1418,15 +1381,18 @@ updateBeats(0);
 // at a new width, which covers the first real layout, the font swap and every
 // resize after. Watching the box rather than the window because the box is the
 // thing whose width decides the answer.
+//
+// Width only. A height change here is this function's own doing, and reacting to
+// it would resize the band, which resizes the frame, which re-bakes the shots.
 let observedWidth = 0;
 new ResizeObserver(([entry]) => {
   const width = entry.contentRect.width;
   if (width === observedWidth) return; // its own height change, not a reflow
   observedWidth = width;
-  sizeToActiveBeat();
+  reserveBeatBand();
 }).observe(beatBox);
 
-if (document.fonts) document.fonts.ready.then(sizeToActiveBeat);
+if (document.fonts) document.fonts.ready.then(reserveBeatBand);
 
 // --- scroll anchors ----------------------------------------------------------
 
@@ -1766,7 +1732,7 @@ if (driveTrack) {
 
   // The "spent" line, at the drive lower limit, on every bar at once.
   panel.style.setProperty('--spent-at', `${(driveTrack.lowerMark * 100).toFixed(2)}%`);
-  beatBox.append(panel);
+  driveSlot.append(panel);
 }
 
 function updateDrives(progress) {
