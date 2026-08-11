@@ -1,0 +1,541 @@
+/* ---------------------------------------------------------------
+   Token system — white ground, condensed grotesk, two figures in
+   two colors: magenta (female / the three hanging shells), blue
+   (male / the two bodies on the rotating beam).
+------------------------------------------------------------------ */
+:root {
+  --bg: #ffffff;
+  --ink: #131316;
+  --mute: #6b6e74;
+  --line: rgba(19, 19, 22, 0.16);
+  --magenta: #e0189a;
+  --blue: #3abff8;
+  /* The two drives, kept off the body colours on purpose: magenta and blue say
+     which body, amber and green say what it wants. */
+  --drive-o: #f5c342;
+  --drive-p: #57b036;
+
+  /* 'Univers Condensed' first for anyone with the licensed Linotype
+     family installed; Barlow Condensed (loaded via Google Fonts) is
+     the freely-licensed stand-in everyone else gets. */
+  --condensed: 'Univers Condensed', 'Univers', 'Barlow Condensed',
+    'Arial Narrow', sans-serif;
+
+  color-scheme: light;
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+}
+
+/* The page steps from moment to moment. `mandatory` means the scroll has no
+   valid resting place other than a marker, so every gesture lands on one — there
+   is no free scrolling through the pin. The markers are placed by `src/main.js`
+   at exactly the points where the line in the floating box changes. */
+html {
+  scroll-snap-type: y mandatory;
+}
+
+/* Zero-size and inert: these exist only to be snap targets. `start` aligns each
+   one with the top of the viewport, which is exactly where `pinProgress` reads
+   its progress from.
+
+   `scroll-snap-stop: always` is what makes it one moment per gesture rather than
+   one moment per *rest*. Without it a flick with any momentum sails past several
+   markers and snaps to whichever it happens to land near, which skips moments —
+   and skipping is the thing this is meant to prevent. With it the scroll is not
+   allowed to pass a marker, so a hard fling advances exactly one. */
+.snap-anchor {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* The intro needs to be a stop of its own — under `mandatory` a section with no
+   snap point is not a place the page can rest, and the reader would be pulled
+   off the title and onto the stage before reading a word of it.
+
+   It gets a marker rather than `scroll-snap-align` on the section itself,
+   because the section is taller than the viewport and a snap area larger than
+   the snapport is satisfied by *any* offset that keeps the snapport inside it.
+   That is a band, not a point: measured here as 67px of free scrolling at the
+   top of the page, which is exactly the thing this is supposed to remove. The
+   marker gives it a single position. `position: relative` is what the marker
+   hangs off. */
+.intro {
+  position: relative;
+}
+
+body {
+  font: 400 20px/1.5 var(--condensed);
+}
+
+main {
+  overflow-x: clip;
+}
+
+/* ---------------------------------------------------------------
+   Text panel (intro) — the only one; the stage ends the page
+------------------------------------------------------------------ */
+.panel {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: 8vh 8vw;
+}
+
+.panel-content {
+  max-width: 640px;
+  margin-right: auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero — the archival photo of the installation bleeds in from the
+   right, held under a white scrim that stays near-opaque behind the
+   left-hand text column so the condensed ink keeps its legibility. */
+.panel.intro {
+  background-image: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.97) 0%,
+      rgba(255, 255, 255, 0.93) 32%,
+      rgba(255, 255, 255, 0.62) 64%,
+      rgba(255, 255, 255, 0.42) 100%
+    ),
+    url('../images/colloquy hero.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+
+.eyebrow {
+  font: 500 15px/1 var(--condensed);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0 0 18px;
+}
+
+h1 {
+  font-family: var(--condensed);
+  font-weight: 600;
+  font-size: clamp(48px, 7vw, 84px);
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 28px;
+}
+
+.lede {
+  font-weight: 400;
+  font-size: 19px;
+  color: var(--mute);
+  margin: 0 0 18px;
+  max-width: 54ch;
+}
+
+/* The provenance note — present and readable, but not competing with the lede. */
+.lede.footnote {
+  font-size: 16px;
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
+  color: var(--mute);
+  opacity: 0.9;
+}
+
+.scroll-cue {
+  margin-top: 10vh;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font: 500 13px/1 var(--condensed);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.scroll-cue-line {
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(var(--ink), transparent);
+  animation: scroll-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes scroll-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Pinned stage — the recording plays here, scrubbed by scroll
+------------------------------------------------------------------ */
+.pin-section {
+  position: relative;
+  /* The scroll distance the whole camera move plays out over. Longer means a
+     slower pan for the same shot list. */
+  height: 780vh;
+}
+
+/* Full bleed: the scene is the page here, edge to edge, with the text track
+   laid over it rather than beside it. */
+.pin-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* The player creates its canvas inside this element and sizes it to fit.
+   `overflow: hidden` is load-bearing: without it the canvas can grow the box,
+   which grows the canvas, until the drawing buffer hits the WebGL limit and the
+   view goes blank. Filling by `inset` rather than by width/height keeps the box
+   from being something the canvas can push around. */
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.stage-error {
+  position: absolute;
+  left: 6vw;
+  bottom: 6vh;
+  margin: 0;
+  z-index: 3;
+  font: 400 14px/1.4 var(--condensed);
+  color: #b3261e;
+}
+
+/* ---------------------------------------------------------------
+   The text — one floating box held at the right of the stage. It
+   does not move: scroll swaps what is in it, one beat crossfading
+   into the next in place.
+------------------------------------------------------------------ */
+/* Inside the sticky stage rather than spanning the section, so it stays put in
+   the viewport for the whole pinned scroll. */
+.pin-text {
+  position: absolute;
+  top: 50%;
+  /* On the right, but held well off the edge — its inner edge lands on the
+     centre line, and the piece gets the half of the frame to the left of it.
+     `safeArea()` in main.js reads this out of the layout, so this offset is the
+     one place the balance is set. */
+  right: 12vw;
+  transform: translateY(-50%);
+  width: min(26%, 350px);
+  padding: 24px 26px;
+  background: rgba(255, 255, 255, 0.82);
+  /* The scene is white, so the box needs an edge and a lift to read as a
+     surface over it rather than as a patch of the ground. */
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 44px rgba(19, 19, 22, 0.09);
+  /* Over the scene, not beside it. Clicks and drags belong to the view. */
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Beats are stacked on top of each other, so the stack has no height of its
+   own — main.js sets it from whichever beat is showing, and the box eases
+   between the two rather than snapping. */
+.beat-stack {
+  position: relative;
+  height: 0;
+  transition: height 340ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Every beat occupies the same spot; only the active one is visible. The small
+   rise on the way in gives the swap a direction without moving the box. */
+.beat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.beat.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+.beat p {
+  margin: 0;
+  font: 400 18px/1.45 var(--condensed);
+  color: var(--ink);
+}
+
+/* What the camera is doing, as against what the piece is doing. */
+.beat[data-kind='camera'] p {
+  color: var(--mute);
+  font-size: 17px;
+}
+
+/* ---------------------------------------------------------------
+   The drive readout — five rows under the prose, one per body,
+   moving continuously with the scroll while the text above it
+   changes only on a beat.
+------------------------------------------------------------------ */
+.drives {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.drives-legend {
+  display: flex;
+  align-items: center;
+  /* Wraps, because the note does not fit beside the swatches at this width. */
+  flex-wrap: wrap;
+  gap: 14px;
+  row-gap: 8px;
+  margin: 0 0 18px;
+  font: 500 11px/1 var(--condensed);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.drives-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.drives-key i {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+/* Always its own line, rather than whatever is left beside the swatches. */
+.drives-note {
+  flex-basis: 100%;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+
+/* One body per row, and they need to read as five separate readings rather than
+   as a block of stripes — so the rows are spaced further apart than the two
+   bars within any one of them. */
+.drive-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.drive-row:first-of-type {
+  padding-top: 0;
+}
+
+.drive-row:last-of-type {
+  padding-bottom: 0;
+}
+
+.drive-dot {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.drive-row[data-side='female'] .drive-dot {
+  background: var(--magenta);
+}
+
+.drive-row[data-side='male'] .drive-dot {
+  background: var(--blue);
+}
+
+.drive-name {
+  flex: none;
+  width: 20px;
+  font: 500 13px/1 var(--condensed);
+  letter-spacing: 0.06em;
+  color: var(--mute);
+}
+
+/* The two bars stack, so the pair reads as one body's appetite rather than as
+   two unrelated measures. */
+.drive-bars {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* The track carries the "spent" mark — the drive lower limit, below which the
+   page's prose calls a body spent. `--spent-at` is set from the recording's own
+   limit, not typed here. */
+.drive-bar {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(19, 19, 22, 0.09);
+  overflow: hidden;
+}
+
+.drive-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--spent-at, 12%);
+  width: 1px;
+  background: rgba(19, 19, 22, 0.32);
+}
+
+.drive-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.drive-bar[data-drive='o'] i,
+.drives-key i[data-drive='o'] {
+  background: var(--drive-o);
+}
+
+.drive-bar[data-drive='p'] i,
+.drives-key i[data-drive='p'] {
+  background: var(--drive-p);
+}
+
+.drive-state {
+  flex: none;
+  width: 66px;
+  text-align: right;
+  font: 400 14px/1.2 var(--condensed);
+  color: var(--mute);
+}
+
+/* Engaging is the thing the whole piece is about; the other two are the resting
+   condition, and should not compete with it. */
+.drive-row[data-state='engaging'] .drive-state {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Narrow: there is no room for a box beside the piece, so it runs the full
+   width and sits low, clear of where the bodies hang. The stage stays full
+   bleed. */
+@media (max-width: 900px) {
+  .pin-text {
+    top: auto;
+    bottom: 7svh;
+    left: 6vw;
+    right: 6vw;
+    width: auto;
+    transform: none;
+    padding: 24px 24px;
+  }
+
+  /* A phone has the width to carry the type the desktop box no longer has room
+     for, and the box is the only thing on screen with it. */
+  .beat p {
+    font-size: 19px;
+  }
+
+  .beat[data-kind='camera'] p {
+    font-size: 18px;
+  }
+
+  /* The box is bottom-anchored and the camera gets whatever is above it, so on
+     a short window the readout gives some of its slack back rather than pushing
+     the piece off the top. The rows all stay, and stay separated. */
+  .drives {
+    margin-top: 22px;
+    padding-top: 18px;
+  }
+
+  .drives-legend {
+    margin-bottom: 16px;
+  }
+
+  .drives-note {
+    display: none;
+  }
+
+  .drive-row {
+    padding: 9px 0;
+  }
+
+  .drive-name {
+    width: 22px;
+    font-size: 14px;
+  }
+
+  .drive-state {
+    width: 72px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 8vh 6vw;
+  }
+  /* Narrow: text runs full-width, so scrim the whole frame and let the
+     photo read as a faint wash behind, heaviest at the top by the title. */
+  .panel.intro {
+    background-image: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(255, 255, 255, 0.88) 45%,
+        rgba(255, 255, 255, 0.78) 100%
+      ),
+      url('../images/colloquy hero.webp');
+    background-position: center, center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue-line {
+    animation: none;
+    opacity: 0.6;
+  }
+  .beat,
+  .beat-stack,
+  .pin-text::before {
+    transition: none;
+  }
+}

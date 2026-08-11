@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Top-down radar · Colloquy explorations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./explore.css" />
+    <style>
+      .game { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 26px; align-items: start; }
+
+      .radar-card { padding: 18px; display: grid; place-items: center; }
+      .radar { width: 100%; height: auto; display: block; aspect-ratio: 1 / 1; max-height: 580px; }
+
+      #nodes .node { transition: opacity 0.3s; }
+      #nodes.locked .node { opacity: 0.28; }
+      #nodes.locked .node.engaging { opacity: 1; }
+
+      .ring { fill: none; stroke: var(--hair); stroke-width: 1; }
+      .plinth { fill: rgba(19,19,22,0.03); stroke: var(--line); stroke-width: 1; }
+      .axis { stroke: var(--hair); stroke-width: 1; }
+      .beam-line { stroke: var(--blue); stroke-width: 2; opacity: 0.5; stroke-linecap: round; }
+      .link { stroke: url(#lock); stroke-width: 3; stroke-linecap: round; opacity: 0; }
+      .link.on { opacity: 1; }
+
+      .node-halo { opacity: 0; transition: opacity 0.2s; }
+      .node.engaging .node-halo { opacity: 1; }
+      .node-ring { fill: none; stroke-width: 2.5; }
+      .node-core--female { fill: var(--magenta); }
+      .node-core--male { fill: var(--blue); }
+      .node-label { font: 600 14px/1 var(--condensed); fill: var(--ink); text-anchor: middle; }
+      .node-sub { font: 500 10px/1 var(--condensed); fill: var(--faint); text-anchor: middle; letter-spacing: 0.14em; text-transform: uppercase; }
+
+      .radar-cap { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding: 0 6px; font: 400 12.5px/1.4 var(--condensed); color: var(--faint); letter-spacing: 0.04em; }
+
+      /* --- the party HUD, RPG-style ------------------------------------- */
+      .hud { display: flex; flex-direction: column; gap: 12px; }
+
+      .unit-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 13px 15px;
+        background: var(--bg);
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+      }
+      .unit-card[data-state='engaging'] {
+        border-color: var(--ink);
+        box-shadow: 0 10px 26px -18px rgba(19,19,22,0.6);
+      }
+
+      .unit-top { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+      .unit-top .dot { width: 11px; height: 11px; }
+      .unit-name { font: 600 17px/1 var(--condensed); letter-spacing: 0.01em; }
+      .unit-side { font: 500 11px/1 var(--condensed); color: var(--faint); letter-spacing: 0.1em; text-transform: uppercase; }
+      .badge {
+        margin-left: auto;
+        font: 600 11px/1 var(--condensed);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #eef0f2;
+        color: var(--mute);
+        white-space: nowrap;
+      }
+      .unit-card[data-state='searching'] .badge { background: #fff5e0; color: #b07d10; }
+      .unit-card[data-state='resting']   .badge { background: #eaf5ff; color: #2b7bb0; }
+      .unit-card[data-state='engaging']  .badge { background: var(--ink); color: #fff; }
+
+      .meter { display: grid; grid-template-columns: 20px 1fr 40px; align-items: center; gap: 9px; margin-top: 7px; }
+      .meter-label { font: 600 12px/1 var(--condensed); color: var(--mute); letter-spacing: 0.04em; }
+      .meter-track {
+        position: relative;
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(19,19,22,0.09);
+        overflow: hidden;
+      }
+      .meter-track::after { /* spent line */
+        content: ''; position: absolute; top: 0; bottom: 0; width: 1px;
+        left: var(--spent-at, 23%); background: rgba(19,19,22,0.3);
+      }
+      .meter-fill { display: block; width: 100%; height: 100%; border-radius: 4px; transform-origin: left center; transform: scaleX(0); }
+      .meter--o .meter-fill { background: var(--drive-o); }
+      .meter--p .meter-fill { background: var(--drive-p); }
+      .meter-val { font: 500 12px/1 var(--condensed); text-align: right; color: var(--mute); font-variant-numeric: tabular-nums; }
+
+      .status { font: 400 15px/1.5 var(--condensed); color: var(--mute); }
+      .transport { margin-top: 26px; }
+
+      @media (max-width: 860px) {
+        .game { grid-template-columns: 1fr; }
+        .hud { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="page-head">
+        <p class="crumbs"><a href="./">Explorations</a><span>/</span>Top-down radar</p>
+        <h1>Top-down radar</h1>
+        <p>The piece read from directly overhead, like a game minimap. The three females hang at fixed points around the plinth; the two males ride the sweeping beam. Each body carries its live stats — drive&nbsp;O, drive&nbsp;P, and what it is doing right now. When a beam locks onto a mirror, the pair light up.</p>
+      </div>
+
+      <div id="stage">
+        <p class="status" id="status">Loading the recording…</p>
+      </div>
+
+      <div id="transport-host"></div>
+    </div>
+
+    <script type="module">
+      import { loadTrack, Playhead, mountTransport } from './track.js';
+
+      const stage = document.getElementById('stage');
+      const status = document.getElementById('status');
+      const transportHost = document.getElementById('transport-host');
+
+      const C = 260;                // radar centre
+      const R_FEMALE = 205;         // outer ring the females hang on
+      const R_MALE = 132;           // the beam radius the males ride
+      const deg = (d) => (d * Math.PI) / 180;
+      // Screen point for a body at (angle°, radius): 0° points up, clockwise.
+      const pt = (angleDeg, radius) => ({
+        x: C + radius * Math.sin(deg(angleDeg)),
+        y: C - radius * Math.cos(deg(angleDeg)),
+      });
+
+      const STATE = {
+        'satisfaction-search': 'searching',
+        'engaging-partner': 'engaging',
+        'satisfied-and-indifferent': 'resting',
+      };
+      const BADGE = { searching: 'Searching', engaging: 'Conversing', resting: 'Resting' };
+
+      try {
+        const track = await loadTrack();
+        stage.innerHTML = '';
+
+        // --- build the radar --------------------------------------------------
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const game = document.createElement('div');
+        game.className = 'game';
+
+        const radarCard = document.createElement('div');
+        radarCard.className = 'card radar-card';
+        radarCard.innerHTML =
+          `<svg class="radar" viewBox="0 0 520 520">` +
+            `<defs><linearGradient id="lock" x1="0" y1="0" x2="1" y2="0">` +
+              `<stop offset="0" stop-color="#3abff8"/><stop offset="1" stop-color="#e0189a"/>` +
+            `</linearGradient></defs>` +
+            `<circle class="ring" cx="${C}" cy="${C}" r="${R_FEMALE}"></circle>` +
+            `<circle class="ring" cx="${C}" cy="${C}" r="${R_MALE}"></circle>` +
+            `<circle class="plinth" cx="${C}" cy="${C}" r="46"></circle>` +
+            `<line class="axis" x1="${C}" y1="40" x2="${C}" y2="480"></line>` +
+            `<line class="axis" x1="40" y1="${C}" x2="480" y2="${C}"></line>` +
+            `<line class="beam-line" id="beam" x1="${C}" y1="${C}" x2="${C}" y2="${C}"></line>` +
+            `<line class="link" id="link" x1="${C}" y1="${C}" x2="${C}" y2="${C}"></line>` +
+            `<g id="nodes"></g>` +
+          `</svg>` +
+          `<div class="radar-cap"><span>Females fixed · males sweeping</span><span>overhead view</span></div>`;
+        game.append(radarCard);
+
+        const nodesG = radarCard.querySelector('#nodes');
+        const beam = radarCard.querySelector('#beam');
+        const link = radarCard.querySelector('#link');
+
+        const nodeOf = new Map();
+        for (const unit of track.units) {
+          const g = document.createElementNS(svgNS, 'g');
+          g.setAttribute('class', 'node');
+          g.innerHTML =
+            `<circle class="node-halo" r="26" fill="none" stroke="${unit.side === 'female' ? '#e0189a' : '#3abff8'}" stroke-width="2" opacity="0"></circle>` +
+            `<circle class="node-ring" r="17"></circle>` +
+            `<circle class="node-core node-core--${unit.side}" r="8"></circle>` +
+            `<text class="node-label" dy="-24">${unit.short}</text>` +
+            `<text class="node-sub" dy="34">${unit.side}</text>`;
+          nodesG.append(g);
+          nodeOf.set(unit.index, {
+            g,
+            ring: g.querySelector('.node-ring'),
+            halo: g.querySelector('.node-halo'),
+          });
+        }
+
+        // --- build the party HUD ---------------------------------------------
+        const hud = document.createElement('div');
+        hud.className = 'hud';
+        const spentPct = (track.lowerMark * 100).toFixed(1) + '%';
+        const cardOf = new Map();
+        for (const unit of track.units) {
+          const card = document.createElement('div');
+          card.className = 'unit-card';
+          card.style.setProperty('--spent-at', spentPct);
+          card.innerHTML =
+            `<div class="unit-top"><span class="dot dot--${unit.side}"></span>` +
+              `<span class="unit-name">${unit.label}</span>` +
+              `<span class="unit-side">${unit.side}</span>` +
+              `<span class="badge">—</span></div>` +
+            `<div class="meter meter--o"><span class="meter-label">O</span>` +
+              `<span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0</span></div>` +
+            `<div class="meter meter--p"><span class="meter-label">P</span>` +
+              `<span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0</span></div>`;
+          hud.append(card);
+          cardOf.set(unit.index, {
+            card,
+            badge: card.querySelector('.badge'),
+            fillO: card.querySelector('.meter--o .meter-fill'),
+            fillP: card.querySelector('.meter--p .meter-fill'),
+            valO: card.querySelector('.meter--o .meter-val'),
+            valP: card.querySelector('.meter--p .meter-val'),
+          });
+        }
+        game.append(hud);
+        stage.append(game);
+
+        const playhead = new Playhead(track, render);
+        const syncTransport = mountTransport(transportHost, track, playhead);
+
+        function render(rowIdx) {
+          syncTransport(rowIdx);
+
+          let maleAngle = null;
+          const engaged = { female: null, male: null };
+          const pos = new Map();
+
+          for (const unit of track.units) {
+            const s = track.at(rowIdx, unit.index);
+            const state = STATE[s.state] ?? 'searching';
+            const radius = unit.side === 'female' ? R_FEMALE : R_MALE;
+            const p = pt(s.angle, radius);
+            pos.set(unit.index, p);
+            if (unit.side === 'male' && maleAngle === null) maleAngle = s.angle;
+
+            const node = nodeOf.get(unit.index);
+            node.g.setAttribute('transform', `translate(${p.x.toFixed(1)},${p.y.toFixed(1)})`);
+            node.g.classList.toggle('engaging', state === 'engaging');
+            node.ring.setAttribute('stroke',
+              state === 'engaging' ? '#131316' : state === 'resting' ? '#c7ccd2' : (unit.side === 'female' ? '#f0a6d5' : '#a9e0fb'));
+
+            if (state === 'engaging') engaged[unit.side] = p;
+
+            const card = cardOf.get(unit.index);
+            card.card.dataset.state = state;
+            card.badge.textContent = BADGE[state];
+            card.fillO.style.transform = `scaleX(${Math.min(1, s.o).toFixed(3)})`;
+            card.fillP.style.transform = `scaleX(${Math.min(1, s.p).toFixed(3)})`;
+            card.valO.textContent = Math.round(s.oRaw);
+            card.valP.textContent = Math.round(s.pRaw);
+          }
+
+          // The beam is a full diameter through the centre at the males' bearing.
+          if (maleAngle !== null) {
+            const a = pt(maleAngle, R_MALE + 26);
+            const bpt = pt(maleAngle + 180, R_MALE + 26);
+            beam.setAttribute('x1', a.x); beam.setAttribute('y1', a.y);
+            beam.setAttribute('x2', bpt.x); beam.setAttribute('y2', bpt.y);
+          }
+
+          // Lock-on line between the engaged pair. When a pair is locked, the
+          // rest dim back so the beam that found its mirror is what reads —
+          // otherwise the searching male that happens to sit near the engaged
+          // female looks like the partner.
+          if (engaged.female && engaged.male) {
+            link.classList.add('on');
+            link.setAttribute('x1', engaged.male.x); link.setAttribute('y1', engaged.male.y);
+            link.setAttribute('x2', engaged.female.x); link.setAttribute('y2', engaged.female.y);
+            nodesG.classList.add('locked');
+          } else {
+            link.classList.remove('on');
+            nodesG.classList.remove('locked');
+          }
+        }
+
+        playhead.emit();
+      } catch (err) {
+        status.textContent = `Could not load the recording: ${err.message}`;
+        console.error(err);
+      }
+    </script>
+  </body>
+</html>

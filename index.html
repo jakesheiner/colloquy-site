@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Colloquy of Mobiles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <section class="panel intro" id="intro">
+        <div class="panel-content">
+          <p class="eyebrow">An Explainer</p>
+          <h1>The Colloquy of Mobiles</h1>
+          <p class="lede">
+            Five bodies hang from a rack. Three of them — the females — turn
+            slowly on their armatures, each carrying a mirror and a hunger for
+            light. Two more — the males — ride a rotating beam above the plinth,
+            sweeping the room with a lamp, looking for something to answer them.
+          </p>
+          <p class="lede">
+            Neither can satisfy itself alone. When a male's beam finds a
+            female's mirror and the reflection comes back, the two lock on and
+            trade signals until both are spent. Then they drift apart and begin
+            again.
+          </p>
+          <p class="lede">
+            What follows is not an animation of that idea. It is a recording of
+            the simulation itself — two minutes of it, unedited, every tick a
+            complete state of every body — played back under your scroll.
+          </p>
+          <p class="lede footnote">
+            It runs a whole cycle. The five begin spent, then fall to searching,
+            and for most of the scroll nothing finds anything. Two thirds of the
+            way down Female A and Male I catch each other and hold — and then
+            she lets go, he does, and all five go back to hunting.
+          </p>
+          <div class="scroll-cue">
+            <span>Scroll</span>
+            <div class="scroll-cue-line"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pin-section" id="pin-section">
+        <div class="pin-stage">
+          <div class="stage" id="stage"></div>
+          <p class="stage-error" id="stage-error" role="status"></p>
+          <!--
+            The beats are written by main.js, not authored here: the camera's own
+            shot list supplies some and the recording's detected state changes
+            supply the rest. The box holds still — it lives inside the sticky
+            stage, not on a track down the section — and scroll swaps which beat
+            is showing by crossfading them in place.
+          -->
+          <div class="pin-text" id="beat-box">
+            <div class="beat-stack" id="beats"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

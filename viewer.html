@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Colloquy — Model Viewer</title>
+    <link rel="stylesheet" href="/src/viewer.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <header class="side-head">
+          <div class="eyebrow">Gordon Pask</div>
+          <h1>Colloquy of Mobiles</h1>
+          <p class="sub">Model &amp; scene-graph viewer</p>
+        </header>
+
+        <nav id="catalog"><!-- populated by viewer.js --></nav>
+
+        <footer class="side-foot">
+          <label class="toggle">
+            <input type="checkbox" id="wireframe-toggle" />
+            <span>Wireframe</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="grid-toggle" checked />
+            <span>Grid &amp; axes</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="spin-toggle" />
+            <span>Auto-rotate</span>
+          </label>
+        </footer>
+      </aside>
+
+      <main id="stage">
+        <canvas id="view"></canvas>
+        <div id="hud">
+          <div id="hud-title">Loading…</div>
+          <div id="hud-meta"></div>
+        </div>
+        <div id="loading" class="hidden"><span>Loading…</span></div>
+      </main>
+    </div>
+    <script type="module" src="/src/viewer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,148 @@
+/* Shared look for the /explore/ experiments. Same tokens as the live site —
+   white ground, condensed grotesk, magenta females, blue males, amber/green
+   drives — kept in one place so all three views read as one family. */
+:root {
+  --bg: #ffffff;
+  --ink: #131316;
+  --mute: #6b6e74;
+  --faint: #9a9da3;
+  --line: rgba(19, 19, 22, 0.16);
+  --hair: rgba(19, 19, 22, 0.08);
+  --panel: rgba(19, 19, 22, 0.035);
+  --magenta: #e0189a;
+  --blue: #3abff8;
+  --drive-o: #f5c342;
+  --drive-p: #57b036;
+  --condensed: 'Univers Condensed', 'Univers', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--condensed);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; }
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 32px 96px;
+}
+
+/* --- page head, shared -------------------------------------------------- */
+.page-head { margin-bottom: 30px; }
+
+.crumbs {
+  font: 500 13px/1 var(--condensed);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0 0 14px;
+}
+.crumbs a { text-decoration: none; color: var(--mute); }
+.crumbs a:hover { color: var(--ink); }
+.crumbs span { color: var(--line); margin: 0 8px; }
+
+.page-head h1 {
+  margin: 0;
+  font: 600 clamp(28px, 4vw, 44px)/1.02 var(--condensed);
+  letter-spacing: -0.01em;
+}
+.page-head p {
+  margin: 10px 0 0;
+  max-width: 62ch;
+  font: 400 clamp(15px, 1.4vw, 17px)/1.5 var(--condensed);
+  color: var(--mute);
+}
+
+/* --- the floating card, borrowed from the live site -------------------- */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -32px rgba(19, 19, 22, 0.35), 0 2px 8px -4px rgba(19, 19, 22, 0.16);
+  padding: 26px 28px 22px;
+}
+
+/* --- the shared transport (play / scrub / time) ------------------------ */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.transport-play {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.transport-play:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.transport-play svg { fill: currentColor; }
+.transport-range {
+  flex: 1 1 auto;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hair);
+  cursor: pointer;
+}
+.transport-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.transport-range::-moz-range-thumb {
+  width: 15px; height: 15px; border: 2px solid var(--bg);
+  border-radius: 50%; background: var(--ink);
+}
+.transport-time {
+  flex: none;
+  font: 500 14px/1 var(--condensed);
+  letter-spacing: 0.04em;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+  min-width: 84px;
+  text-align: right;
+}
+.transport-time b { color: var(--ink); font-weight: 600; }
+
+/* --- little shared body-chip (dot + name) ------------------------------ */
+.dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+.dot--female { background: var(--magenta); }
+.dot--male { background: var(--blue); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font: 400 13px/1 var(--condensed);
+  color: var(--mute);
+  letter-spacing: 0.02em;
+}
+.legend i { width: 22px; height: 4px; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 7px; }
+.legend .swatch-o { background: var(--drive-o); }
+.legend .swatch-p { background: var(--drive-p); }

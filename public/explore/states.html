@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>State machine · Colloquy explorations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./explore.css" />
+    <style>
+      :root { --accent: #3f9fe0; }
+
+      .lead {
+        font: 600 clamp(20px, 2.6vw, 30px)/1.15 var(--condensed);
+        letter-spacing: -0.01em;
+        margin: 8px 0 40px;
+      }
+
+      /* The diagram is a positioned canvas so the connector SVG can be laid over
+         the three boxes and routed from their measured rectangles. */
+      .diagram { position: relative; }
+      .connectors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+      .conn { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+      .conn-label {
+        font: 400 15px/1.35 var(--condensed);
+        fill: var(--accent);
+      }
+
+      .columns {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: clamp(24px, 5vw, 96px);
+        padding: 92px 0 190px;
+      }
+
+      .state-col { display: flex; flex-direction: column; }
+
+      .state-box {
+        background: #d9dadd;
+        border-radius: 10px;
+        padding: 20px 22px;
+        min-height: 118px;
+      }
+      .state-box h2 {
+        margin: 0 0 4px;
+        font: 700 21px/1.1 var(--condensed);
+        letter-spacing: 0.01em;
+      }
+      .state-box .gloss { font: 400 16px/1.3 var(--condensed); color: #3a3c40; }
+      .state-box .count {
+        float: right;
+        font: 600 13px/1 var(--condensed);
+        color: var(--mute);
+        background: rgba(255,255,255,0.7);
+        border-radius: 999px;
+        padding: 5px 9px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* the roster: where the live tokens drop in for whichever state they're in.
+         A stable min-height reserves room for all five in one column, so the
+         columns never change height and the routed arrows never jump. */
+      .roster {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 244px;
+      }
+
+      .token {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        column-gap: 9px;
+        row-gap: 5px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--bg);
+        box-shadow: 0 4px 12px -10px rgba(19,19,22,0.5);
+        will-change: transform;
+      }
+      .token .who { display: flex; align-items: center; gap: 7px; }
+      .token .who .dot { width: 9px; height: 9px; }
+      .token .who b { font: 600 15px/1 var(--condensed); }
+      .token .who small { font: 500 10px/1 var(--condensed); color: var(--faint); letter-spacing: 0.1em; text-transform: uppercase; }
+      .token .bars { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; }
+      .tbar { height: 3px; border-radius: 2px; background: rgba(19,19,22,0.09); overflow: hidden; }
+      .tbar i { display: block; height: 100%; border-radius: 2px; transform-origin: left; transform: scaleX(0); }
+      .tbar--o i { background: var(--drive-o); }
+      .tbar--p i { background: var(--drive-p); }
+      .token[data-side='female'] { }
+
+      .state-col[data-key='engaging'] .token { border-color: var(--ink); }
+
+      .status { font: 400 15px/1.5 var(--condensed); color: var(--mute); padding: 30px 0; }
+      .transport { margin-top: 8px; max-width: 620px; }
+
+      @media (max-width: 760px) {
+        .connectors { display: none; }
+        .columns { grid-template-columns: 1fr; gap: 18px; padding: 8px 0 40px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="page-head">
+        <p class="crumbs"><a href="./">Explorations</a><span>/</span>State machine</p>
+        <h1>The three states, live</h1>
+        <p>The explainer's state diagram, driven by the recording. Every mobile is always in exactly one of three states; as the two minutes play, the five bodies sort themselves into the column they're in and slide across when they change.</p>
+      </div>
+
+      <p class="lead">At any moment, each mobile is in one of three possible states:</p>
+
+      <div class="diagram" id="diagram">
+        <svg class="connectors" id="connectors" aria-hidden="true">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10" fill="none" stroke="#3f9fe0" stroke-width="1.5"></path>
+            </marker>
+          </defs>
+        </svg>
+
+        <div class="columns" id="columns">
+          <div class="state-col" data-key="searching">
+            <div class="state-box" id="box-searching">
+              <span class="count">0</span>
+              <h2>Searching</h2>
+              <div class="gloss">for a partner to engage in conversation.</div>
+            </div>
+            <div class="roster" id="roster-searching"></div>
+          </div>
+          <div class="state-col" data-key="engaging">
+            <div class="state-box" id="box-engaging">
+              <span class="count">0</span>
+              <h2>Conversing</h2>
+              <div class="gloss">with a partner to satisfy their goals.</div>
+            </div>
+            <div class="roster" id="roster-engaging"></div>
+          </div>
+          <div class="state-col" data-key="resting">
+            <div class="state-box" id="box-resting">
+              <span class="count">0</span>
+              <h2>Resting</h2>
+              <div class="gloss">in order to recharge its “drives.”</div>
+            </div>
+            <div class="roster" id="roster-resting"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="status" class="status">Loading the recording…</div>
+      <div id="transport-host"></div>
+    </div>
+
+    <script type="module">
+      import { loadTrack, Playhead, mountTransport } from './track.js';
+
+      const status = document.getElementById('status');
+      const transportHost = document.getElementById('transport-host');
+
+      const STATE = {
+        'satisfaction-search': 'searching',
+        'engaging-partner': 'engaging',
+        'satisfied-and-indifferent': 'resting',
+      };
+
+      // --- connector routing (the slide's arrows), measured from the boxes ----
+      const diagram = document.getElementById('diagram');
+      const svg = document.getElementById('connectors');
+      const boxes = {
+        searching: document.getElementById('box-searching'),
+        engaging: document.getElementById('box-engaging'),
+        resting: document.getElementById('box-resting'),
+      };
+
+      function rectIn(el) {
+        const base = diagram.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height,
+                 cx: r.left - base.left + r.width / 2, top: r.top - base.top, bottom: r.top - base.top + r.height };
+      }
+
+      function drawConnectors() {
+        const base = diagram.getBoundingClientRect();
+        svg.setAttribute('viewBox', `0 0 ${base.width} ${base.height}`);
+        // wipe everything but the <defs>
+        [...svg.querySelectorAll('.conn, .conn-label')].forEach((n) => n.remove());
+        if (base.width < 40) return;
+
+        const s = rectIn(boxes.searching);
+        const e = rectIn(boxes.engaging);
+        const r = rectIn(boxes.resting);
+
+        const NS = 'http://www.w3.org/2000/svg';
+        const line = (d) => {
+          const p = document.createElementNS(NS, 'path');
+          p.setAttribute('class', 'conn');
+          p.setAttribute('d', d);
+          p.setAttribute('marker-end', 'url(#arrow)');
+          svg.append(p);
+        };
+        const label = (x, y, lines) => {
+          const t = document.createElementNS(NS, 'text');
+          t.setAttribute('class', 'conn-label');
+          t.setAttribute('x', x); t.setAttribute('y', y);
+          lines.forEach((ln, i) => {
+            const ts = document.createElementNS(NS, 'tspan');
+            ts.setAttribute('x', x); ts.setAttribute('dy', i === 0 ? 0 : 18);
+            ts.textContent = ln;
+            t.append(ts);
+          });
+          svg.append(t);
+        };
+
+        // forward: searching → engaging → resting, arching over the top
+        const railTop1 = s.top - 34;
+        line(`M ${s.cx} ${s.top - 2} V ${railTop1} H ${e.cx} V ${e.top - 4}`);
+        label(s.cx + 8, railTop1 - 26, ['After confirming a partner,', 'they move to the next state.']);
+
+        const railTop2 = e.top - 34;
+        line(`M ${e.cx} ${e.top - 2} V ${railTop2} H ${r.cx} V ${r.top - 4}`);
+        label(e.cx + 8, railTop2 - 26, ['After satisfying their goals,', 'they move to the next state.']);
+
+        // The return arrows loop back BELOW the rosters (the drop zones), which
+        // are the tallest thing in each column — routing off the boxes alone
+        // would cut the arrows straight through the piled-up tokens.
+        const rosterBottom = Math.max(
+          rectIn(document.getElementById('roster-searching')).bottom,
+          rectIn(document.getElementById('roster-engaging')).bottom,
+          rectIn(document.getElementById('roster-resting')).bottom
+        );
+        const exitFrom = (col) => rectIn(document.getElementById('roster-' + col)).bottom;
+
+        // back: engaging → searching (fail), first loop under the columns
+        const railBot1 = rosterBottom + 40;
+        line(`M ${e.cx} ${exitFrom('engaging') + 2} V ${railBot1} H ${s.cx + 22} V ${exitFrom('searching') + 4}`);
+        label(s.cx + 8, railBot1 + 22, ['If they fail to make a connection', 'they go back to searching.']);
+
+        // back: resting → searching (recharge), lower loop under everything
+        const railBot2 = rosterBottom + 104;
+        line(`M ${r.cx} ${exitFrom('resting') + 2} V ${railBot2} H ${s.cx - 22} V ${exitFrom('searching') + 4}`);
+        label(r.cx - 40, railBot2 + 22, ['After recharging,', 'they begin searching again.']);
+      }
+
+      try {
+        const track = await loadTrack();
+        status.remove();
+
+        const rosters = {
+          searching: document.getElementById('roster-searching'),
+          engaging: document.getElementById('roster-engaging'),
+          resting: document.getElementById('roster-resting'),
+        };
+        const counts = {
+          searching: boxes.searching.querySelector('.count'),
+          engaging: boxes.engaging.querySelector('.count'),
+          resting: boxes.resting.querySelector('.count'),
+        };
+
+        // one persistent token per body; it glides between rosters on a change
+        const tokens = track.units.map((unit) => {
+          const el = document.createElement('div');
+          el.className = 'token';
+          el.dataset.side = unit.side;
+          el.innerHTML =
+            `<span class="who"><span class="dot dot--${unit.side}"></span>` +
+              `<b>${unit.label}</b><small>${unit.side}</small></span>` +
+            `<span class="bars"><span class="tbar tbar--o"><i></i></span>` +
+              `<span class="tbar tbar--p"><i></i></span></span>`;
+          return {
+            unit, el, key: null,
+            fillO: el.querySelector('.tbar--o i'),
+            fillP: el.querySelector('.tbar--p i'),
+          };
+        });
+
+        function moveToken(tok, key) {
+          const target = rosters[key];
+          if (tok.el.parentElement === target) return;
+          const first = tok.el.getBoundingClientRect();
+          target.append(tok.el);
+          const last = tok.el.getBoundingClientRect();
+          const dx = first.left - last.left, dy = first.top - last.top;
+          if (dx || dy) {
+            tok.el.animate(
+              [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+              { duration: 560, easing: 'cubic-bezier(.5,.05,.2,1)' }
+            );
+          }
+        }
+
+        const playhead = new Playhead(track, render);
+        const syncTransport = mountTransport(transportHost, track, playhead);
+
+        function render(rowIdx) {
+          syncTransport(rowIdx);
+          const tally = { searching: 0, engaging: 0, resting: 0 };
+          for (const tok of tokens) {
+            const s = track.at(rowIdx, tok.unit.index);
+            const key = STATE[s.state] ?? 'searching';
+            tally[key]++;
+            if (key !== tok.key) { tok.key = key; moveToken(tok, key); }
+            tok.fillO.style.transform = `scaleX(${Math.min(1, s.o).toFixed(3)})`;
+            tok.fillP.style.transform = `scaleX(${Math.min(1, s.p).toFixed(3)})`;
+          }
+          for (const k of ['searching', 'engaging', 'resting']) counts[k].textContent = tally[k];
+        }
+
+        // place tokens once, draw arrows, then start
+        for (const tok of tokens) rosters.searching.append(tok.el);
+        drawConnectors();
+        new ResizeObserver(drawConnectors).observe(diagram);
+        playhead.emit();
+      } catch (err) {
+        status.textContent = `Could not load the recording: ${err.message}`;
+        console.error(err);
+      }
+    </script>
+  </body>
+</html>

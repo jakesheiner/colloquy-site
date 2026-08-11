@@ -1,0 +1,1330 @@
+{
+  "name": "Environment + Female facing 0 + Bar with Male facing 0 and Male facing 180",
+  "schemaVersion": 3,
+  "units": {
+    "linear": "inches",
+    "angle": "degrees",
+    "frequency": "hz"
+  },
+  "metadata": {
+    "name": "Environment + Female facing 0 + Bar with Male facing 0 and Male facing 180",
+    "description": "Ladder rung 9 — full: female at azimuth 0 (female_1) + the two-male arbitration pair on the beam (offsets 0 and 180). Each male sweeps over the female at its aligning beam phase. Environment-rooted; positions are a subset of the canonical 3-female/2-male/1-bar base scene.",
+    "author": "Thomas J McLeish",
+    "derivedFrom": "Colloquy-of--Mobiles-Virtual-Simulation-260316-V1.json"
+  },
+  "blocks": {
+    "female_unit": {
+      "root": "horizontal_control",
+      "nodes": {
+        "horizontal_control": {
+          "type": "joint",
+          "parent": "null",
+          "axis": "z",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "motionProfile": {
+            "min": -30,
+            "max": 30,
+            "maxVelocity": 15,
+            "maxAccel": 10,
+            "engaging": {
+              "maxVelocity": 30,
+              "maxAccel": 20
+            }
+          },
+          "initialState": {
+            "position": 0,
+            "velocity": 0,
+            "accel": 0,
+            "hold": false,
+            "direction": "to-max"
+          }
+        },
+        "shell": {
+          "type": "link",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/female-shell-body-260316.obj"
+        },
+        "LEDsupport": {
+          "type": "link",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/female-shell-head-260316.obj"
+        },
+        "interiorled_upper": {
+          "type": "indicator",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/female-interiorled-upper-260316.obj",
+          "marker": {
+            "size": {
+              "x": 7.14,
+              "y": 7.11,
+              "z": 6.99
+            },
+            "transform": {
+              "tx": 0,
+              "ty": -3.82,
+              "tz": -23.76,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": 0,
+              "ty": -3.82,
+              "tz": -23.76,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "interiorled_middle": {
+          "type": "indicator",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/female-interiorled-middle-260316.obj",
+          "marker": {
+            "size": {
+              "x": 9.8,
+              "y": 8.29,
+              "z": 10.75
+            },
+            "transform": {
+              "tx": 0,
+              "ty": 6.58,
+              "tz": -42.9,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": 0,
+              "ty": 6.58,
+              "tz": -42.9,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "interiorled_lower": {
+          "type": "indicator",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/female-interiorled-lower-260316.obj",
+          "marker": {
+            "size": {
+              "x": 5.12,
+              "y": 5.58,
+              "z": 7.28
+            },
+            "transform": {
+              "tx": 0,
+              "ty": -1.88,
+              "tz": -51.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": 0,
+              "ty": -1.88,
+              "tz": -51.42,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "armature": {
+          "type": "link",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/female-armature-260316.obj"
+        },
+        "speaker": {
+          "type": "actuator",
+          "subtype": "speaker",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": -2,
+            "ty": -0.25,
+            "tz": -34.75,
+            "rx": 90,
+            "ry": 0,
+            "rz": 0
+          },
+          "fov": {
+            "angle": 120,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "inverse-square"
+          },
+          "initialState": {
+            "on": false,
+            "frequency": 440
+          }
+        },
+        "microphone": {
+          "type": "sensor",
+          "subtype": "microphone",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 2,
+            "ty": -0.25,
+            "tz": -34.75,
+            "rx": 90,
+            "ry": 0,
+            "rz": 0
+          },
+          "fov": {
+            "angle": 180,
+            "minRange": 0,
+            "maxRange": 8,
+            "falloff": "inverse-square"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "vertical_control": {
+          "type": "joint",
+          "parent": "horizontal_control",
+          "axis": "x",
+          "transform": {
+            "tx": 0,
+            "ty": -9,
+            "tz": -40.5,
+            "rx": 90,
+            "ry": 0,
+            "rz": 0
+          },
+          "motionProfile": {
+            "min": -25,
+            "max": 25,
+            "maxVelocity": 60,
+            "maxAccel": 30,
+            "engaging": {
+              "maxVelocity": 60,
+              "maxAccel": 30
+            }
+          },
+          "initialState": {
+            "position": 0,
+            "velocity": 0,
+            "accel": 0,
+            "hold": false,
+            "direction": "to-max"
+          }
+        },
+        "mirror_armature": {
+          "type": "link",
+          "parent": "vertical_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": -90,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": {
+            "mesh": "models/female-mirror-armature-260703.obj",
+            "material": {
+              "reflective": false,
+              "reflectivity": 0
+            }
+          }
+        },
+        "mirror": {
+          "type": "link",
+          "parent": "vertical_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0.875,
+            "rx": -90,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": {
+            "mesh": "models/female-mirror-260703.obj",
+            "material": {
+              "reflective": true,
+              "reflectivity": 1,
+              "bounds": {
+                "width": 11.5,
+                "height": 11.5
+              }
+            }
+          }
+        },
+        "light_sensor": {
+          "type": "sensor",
+          "subtype": "light",
+          "parent": "vertical_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0.875,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "fov": {
+            "angle": 90,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "linear"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "mobile_diagram": {
+          "type": "indicator",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "marker": {
+            "size": {
+              "x": 30,
+              "y": 30,
+              "z": 1
+            },
+            "transform": {
+              "tx": 0,
+              "ty": 0,
+              "tz": -95,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "role": "mobile-diagram"
+        }
+      }
+    },
+    "male_unit": {
+      "root": "base",
+      "nodes": {
+        "base": {
+          "type": "link",
+          "parent": null,
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": ""
+        },
+        "indicator_drivelevel_support": {
+          "type": "link",
+          "parent": "base",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-indicator-drivelevel-support-260316.obj"
+        },
+        "indicator_drivelevel": {
+          "type": "indicator",
+          "parent": "base",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-indicator-drivelevel-260316.obj",
+          "marker": {
+            "size": {
+              "x": 7.13,
+              "y": 7.13,
+              "z": 0.5
+            },
+            "transform": {
+              "tx": 0,
+              "ty": -3.75,
+              "tz": 1.49,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": 0,
+              "ty": -3.75,
+              "tz": -0.51,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "horizontal_control": {
+          "type": "joint",
+          "parent": "base",
+          "axis": "z",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": -4,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "motionProfile": {
+            "min": -60,
+            "max": 60,
+            "maxVelocity": 25,
+            "maxAccel": 15,
+            "engaging": {
+              "maxVelocity": 50,
+              "maxAccel": 30
+            }
+          },
+          "initialState": {
+            "position": 0,
+            "velocity": 0,
+            "accel": 0,
+            "hold": false,
+            "direction": "to-max"
+          }
+        },
+        "body": {
+          "type": "link",
+          "parent": "horizontal_control",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 4,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-body-260316.obj"
+        },
+        "indicator_drive_o": {
+          "type": "indicator",
+          "parent": "body",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-indicator-drive-O-260316.obj",
+          "marker": {
+            "size": {
+              "x": 5,
+              "y": 0.5,
+              "z": 5
+            },
+            "transform": {
+              "tx": -3.12,
+              "ty": -2.62,
+              "tz": -46.75,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": -1.13,
+              "ty": -2.88,
+              "tz": -48.75,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "indicator_drive_p": {
+          "type": "indicator",
+          "parent": "body",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-indicator-drive-P-260316.obj",
+          "marker": {
+            "size": {
+              "x": 5,
+              "y": 0.5,
+              "z": 5
+            },
+            "transform": {
+              "tx": 2.88,
+              "ty": -2.62,
+              "tz": -46.75,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": 0.88,
+              "ty": -2.88,
+              "tz": -48.75,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "light-source_ring": {
+          "type": "indicator",
+          "role": "light-source-ring",
+          "parent": "body",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-lightsource-ring-260712b.obj",
+          "visual": {
+            "mode": "emissive-color",
+            "onColor": "#ffffff",
+            "emissiveMin": 0.25,
+            "emissiveMax": 2.5
+          },
+          "marker": {
+            "size": {
+              "x": 2.6,
+              "y": 0.2,
+              "z": 2.6
+            },
+            "transform": {
+              "tx": -0.125,
+              "ty": -2.5,
+              "tz": -40.5,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "lamp": {
+            "transform": {
+              "tx": -0.125,
+              "ty": -4.25,
+              "tz": -40.5,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "initialState": {
+            "on": false
+          }
+        },
+        "light-source_support": {
+          "type": "link",
+          "parent": "body",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-lightsource-support.obj"
+        },
+        "indicator_drivestate": {
+          "type": "indicator",
+          "parent": "body",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "marker": {
+            "size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "transform": {
+              "tx": -0.125,
+              "ty": -2.5,
+              "tz": -38,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          }
+        },
+        "splodges_static_upper": {
+          "type": "link",
+          "parent": "body",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-splodges-static-upper-260713.obj"
+        },
+        "lower_splodge_joint": {
+          "type": "joint",
+          "parent": "body",
+          "axis": "z",
+          "transform": {
+            "tx": 0,
+            "ty": -2,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "motionProfile": {
+            "min": -60,
+            "max": 60,
+            "maxVelocity": 25,
+            "maxAccel": 15,
+            "engaging": {
+              "maxVelocity": 50,
+              "maxAccel": 30
+            }
+          },
+          "initialState": {
+            "position": 0,
+            "velocity": 0,
+            "accel": 0,
+            "hold": false,
+            "direction": "to-min"
+          }
+        },
+        "splodges_static_lower": {
+          "type": "link",
+          "parent": "lower_splodge_joint",
+          "transform": {
+            "tx": 0,
+            "ty": 2,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "geometry": "models/male-splodges-static-lower-260714.obj"
+        },
+        "speaker": {
+          "type": "actuator",
+          "subtype": "speaker",
+          "parent": "body",
+          "transform": {
+            "tx": -0.125,
+            "ty": -2.125,
+            "tz": -33.75,
+            "rx": 90,
+            "ry": 0,
+            "rz": 0
+          },
+          "fov": {
+            "angle": 120,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "inverse-square"
+          },
+          "initialState": {
+            "on": false,
+            "frequency": 440
+          }
+        },
+        "microphone": {
+          "type": "sensor",
+          "subtype": "microphone",
+          "parent": "body",
+          "transform": {
+            "tx": 2.125,
+            "ty": -2.6575,
+            "tz": -36.5,
+            "rx": 90,
+            "ry": 0,
+            "rz": 0
+          },
+          "fov": {
+            "angle": 180,
+            "minRange": 0,
+            "maxRange": 8,
+            "falloff": "inverse-square"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "light_source": {
+          "type": "actuator",
+          "subtype": "light",
+          "parent": "body",
+          "transform": {
+            "tx": -0.125,
+            "ty": -2.5,
+            "tz": -40.5,
+            "rx": 90,
+            "ry": 0,
+            "rz": 0
+          },
+          "fov": {
+            "angle": 45,
+            "minRange": 0,
+            "maxRange": 8,
+            "falloff": "inverse-square"
+          },
+          "initialState": {
+            "on": false
+          }
+        },
+        "upper_light_sensor_a": {
+          "type": "sensor",
+          "subtype": "light",
+          "parent": "body",
+          "transform": {
+            "tx": -3.13082,
+            "ty": 13.65211,
+            "tz": -9.82129,
+            "rx": 122,
+            "ry": 0,
+            "rz": 3
+          },
+          "fov": {
+            "angle": 30,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "linear"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "upper_light_sensor_b": {
+          "type": "sensor",
+          "subtype": "light",
+          "parent": "body",
+          "transform": {
+            "tx": 3.13012,
+            "ty": 13.96944,
+            "tz": -9.82152,
+            "rx": 122,
+            "ry": 0,
+            "rz": -3
+          },
+          "fov": {
+            "angle": 30,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "linear"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "lower_light_sensor_a": {
+          "type": "sensor",
+          "subtype": "light",
+          "parent": "body",
+          "transform": {
+            "tx": 2.88281,
+            "ty": -1.89948,
+            "tz": -51.40671,
+            "rx": 71,
+            "ry": 0,
+            "rz": -5
+          },
+          "fov": {
+            "angle": 30,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "linear"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "lower_light_sensor_b": {
+          "type": "sensor",
+          "subtype": "light",
+          "parent": "body",
+          "transform": {
+            "tx": -3.13466,
+            "ty": -1.89964,
+            "tz": -51.40666,
+            "rx": 71,
+            "ry": 0,
+            "rz": 5
+          },
+          "fov": {
+            "angle": 30,
+            "minRange": 0,
+            "maxRange": 10,
+            "falloff": "linear"
+          },
+          "initialState": {
+            "on": true
+          }
+        },
+        "mobile_diagram": {
+          "type": "indicator",
+          "parent": "base",
+          "transform": {
+            "tx": 0,
+            "ty": 0,
+            "tz": 0,
+            "rx": 0,
+            "ry": 0,
+            "rz": 0
+          },
+          "marker": {
+            "size": {
+              "x": 30,
+              "y": 30,
+              "z": 1
+            },
+            "transform": {
+              "tx": 0,
+              "ty": 0,
+              "tz": -95,
+              "rx": 0,
+              "ry": 0,
+              "rz": 0
+            }
+          },
+          "role": "mobile-diagram"
+        }
+      }
+    }
+  },
+  "nodes": {
+    "environment": {
+      "type": "link",
+      "parent": null,
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "geometry": "models/world_base.obj"
+    },
+    "armature": {
+      "type": "link",
+      "parent": "environment",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 96,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "geometry": "models/armature_260225.obj"
+    },
+    "plinth": {
+      "type": "link",
+      "parent": "armature",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "geometry": "models/plinthsurf-full-260712.obj"
+    },
+    "beam_horizontal_control": {
+      "type": "joint",
+      "parent": "armature",
+      "axis": "z",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 180
+      },
+      "motionProfile": {
+        "min": -210,
+        "max": 210,
+        "maxVelocity": 5,
+        "maxAccel": 2.5,
+        "engaging": {
+          "maxVelocity": 10,
+          "maxAccel": 5
+        }
+      },
+      "initialState": {
+        "position": 0,
+        "velocity": 0,
+        "accel": 0,
+        "hold": false,
+        "direction": "to-max"
+      }
+    },
+    "beam_diagram": {
+      "type": "indicator",
+      "role": "beam-diagram",
+      "parent": "armature",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "visual": {
+        "mode": "emissive-color"
+      },
+      "initialState": {
+        "on": true
+      },
+      "marker": {
+        "size": {
+          "x": 93.5,
+          "y": 93.5,
+          "z": 1
+        },
+        "transform": {
+          "tx": 0,
+          "ty": 0,
+          "tz": -95,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0
+        }
+      }
+    },
+    "beam": {
+      "type": "link",
+      "parent": "beam_horizontal_control",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "geometry": "models/beam-260316.obj"
+    },
+    "beam_indicator_dominant_end_i": {
+      "type": "indicator",
+      "parent": "beam",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "geometry": "models/beam-indicator-male1-260316.obj",
+      "marker": {
+        "size": {
+          "x": 1.79,
+          "y": 3.15,
+          "z": 0.5
+        },
+        "transform": {
+          "tx": 0,
+          "ty": -26.44,
+          "tz": -1.94,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0
+        }
+      },
+      "lamp": {
+        "transform": {
+          "tx": 0,
+          "ty": -26.44,
+          "tz": -1.94,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0
+        }
+      }
+    },
+    "beam_indicator_dominant_end_ii": {
+      "type": "indicator",
+      "parent": "beam",
+      "transform": {
+        "tx": 0,
+        "ty": 0,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      },
+      "geometry": "models/beam-indicator-male2-260316.obj",
+      "marker": {
+        "size": {
+          "x": 1.79,
+          "y": 3.15,
+          "z": 0.5
+        },
+        "transform": {
+          "tx": 0,
+          "ty": 26.44,
+          "tz": -1.94,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0
+        }
+      },
+      "lamp": {
+        "transform": {
+          "tx": 0,
+          "ty": 26.44,
+          "tz": -1.94,
+          "rx": 0,
+          "ry": 0,
+          "rz": 0
+        }
+      }
+    }
+  },
+  "instances": [
+    {
+      "id": "female_1",
+      "block": "female_unit",
+      "parent": "armature",
+      "transform": {
+        "tx": 0,
+        "ty": 68,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      }
+    },
+    {
+      "id": "male_1",
+      "block": "male_unit",
+      "parent": "beam",
+      "transform": {
+        "tx": 0,
+        "ty": -23.5,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0
+      }
+    },
+    {
+      "id": "male_2",
+      "block": "male_unit",
+      "parent": "beam",
+      "transform": {
+        "tx": 0,
+        "ty": 23.5,
+        "tz": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 180
+      },
+      "overrides": {
+        "splodges_static_upper": {
+          "geometry": "models/male-splodges-static-upper-inverted-260713.obj"
+        },
+        "splodges_static_lower": {
+          "geometry": "models/male-splodges-static-lower-inverted-260714.obj"
+        }
+      }
+    }
+  ],
+  "logic": [
+    {
+      "id": "female_1_horizontal_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "female_1__horizontal_control"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 0,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 30,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    },
+    {
+      "id": "female_1_vertical_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "female_1__vertical_control"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 0,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 30,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    },
+    {
+      "id": "male_1_horizontal_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "male_1__horizontal_control"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 0,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 60,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    },
+    {
+      "id": "male_1_lower_splodge_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "male_1__lower_splodge_joint"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 0,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 60,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    },
+    {
+      "id": "male_1_light_toggle",
+      "type": "periodic_toggle",
+      "subscribes": [
+        "male_1__light_source"
+      ],
+      "parameters": {
+        "periodSec": 2,
+        "phaseOffsetNorm": 0
+      },
+      "state": {
+        "elapsedSec": 0,
+        "on": false
+      }
+    },
+    {
+      "id": "male_2_horizontal_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "male_2__horizontal_control"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 180,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 60,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    },
+    {
+      "id": "male_2_lower_splodge_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "male_2__lower_splodge_joint"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 180,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 60,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    },
+    {
+      "id": "male_2_light_toggle",
+      "type": "periodic_toggle",
+      "subscribes": [
+        "male_2__light_source"
+      ],
+      "parameters": {
+        "periodSec": 2,
+        "phaseOffsetNorm": 0.5
+      },
+      "state": {
+        "elapsedSec": 0,
+        "on": true
+      }
+    },
+    {
+      "id": "beam_horizontal_osc",
+      "type": "oscillator",
+      "subscribes": [
+        "beam_horizontal_control"
+      ],
+      "parameters": {
+        "requestMode": "release",
+        "reinforcementPosition": 0,
+        "phaseOffsetDeg": 0,
+        "tolerance": 0.125
+      },
+      "state": {
+        "goalValue": 210,
+        "goalLabel": "max-limit",
+        "segmentStartSec": 0,
+        "segmentDurationSec": 0,
+        "lastSample": {
+          "position": 0,
+          "velocity": 0,
+          "accel": 0
+        }
+      }
+    }
+  ]
+}

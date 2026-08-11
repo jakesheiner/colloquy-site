@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Explorations · The Colloquy of Mobiles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./explore.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px; margin-top: 8px; }
+      .tile {
+        display: flex; flex-direction: column;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+      }
+      .tile:hover { transform: translateY(-3px); box-shadow: 0 22px 50px -30px rgba(19,19,22,0.5); border-color: rgba(19,19,22,0.28); }
+      .tile-art { height: 176px; background: var(--panel); border-bottom: 1px solid var(--hair); display: block; }
+      .tile-body { padding: 18px 20px 22px; }
+      .tile-body h2 { margin: 0 0 6px; font: 600 22px/1.05 var(--condensed); letter-spacing: 0.01em; }
+      .tile-body p { margin: 0; font: 400 15px/1.45 var(--condensed); color: var(--mute); }
+      .tile-kicker { font: 500 12px/1 var(--condensed); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="page-head">
+        <p class="crumbs">The Colloquy of Mobiles<span>/</span>Explorations</p>
+        <h1>Reading the recording, other ways</h1>
+        <p>Three experiments in visualising the same two-minute recording that drives the scroll piece — no 3D scene, just the simulation's own numbers, plotted flat. Each plays the whole clip; scrub or press play.</p>
+      </div>
+
+      <div class="grid">
+        <a class="tile" href="./line.html">
+          <svg class="tile-art" viewBox="0 0 320 176" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="16" y1="150" x2="304" y2="150" stroke="rgba(19,19,22,0.12)"/>
+            <line x1="16" y1="118" x2="304" y2="118" stroke="rgba(19,19,22,0.28)" stroke-dasharray="3 3"/>
+            <path d="M16 140 C 80 132, 120 60, 170 66 S 250 150, 304 120" fill="none" stroke="#f5c342" stroke-width="3"/>
+            <path d="M16 150 C 90 148, 140 96, 190 118 S 260 60, 304 74" fill="none" stroke="#57b036" stroke-width="3"/>
+          </svg>
+          <div class="tile-body">
+            <p class="tile-kicker">Line graph</p>
+            <h2>Drive over time</h2>
+            <p>The floating card re-cut as line charts — each body's two appetites rising and falling across the whole clip.</p>
+          </div>
+        </a>
+
+        <a class="tile" href="./radar.html">
+          <svg class="tile-art" viewBox="0 0 320 176" aria-hidden="true">
+            <circle cx="160" cy="88" r="70" fill="none" stroke="rgba(19,19,22,0.12)"/>
+            <circle cx="160" cy="88" r="42" fill="none" stroke="rgba(19,19,22,0.1)"/>
+            <line x1="86" y1="52" x2="234" y2="124" stroke="#3abff8" stroke-width="2" opacity="0.55"/>
+            <circle cx="160" cy="18" r="7" fill="#e0189a"/>
+            <circle cx="221" cy="123" r="7" fill="#e0189a"/>
+            <circle cx="99" cy="123" r="7" fill="#e0189a"/>
+            <circle cx="118" cy="64" r="7" fill="#3abff8"/>
+            <circle cx="202" cy="112" r="7" fill="#3abff8"/>
+          </svg>
+          <div class="tile-body">
+            <p class="tile-kicker">Top-down · game HUD</p>
+            <h2>Radar</h2>
+            <p>The piece from overhead, with each body's stats — drive and state — read out like a party of characters.</p>
+          </div>
+        </a>
+
+        <a class="tile" href="./states.html">
+          <svg class="tile-art" viewBox="0 0 320 176" aria-hidden="true">
+            <rect x="22" y="66" width="78" height="44" rx="7" fill="#d9dadd"/>
+            <rect x="121" y="66" width="78" height="44" rx="7" fill="#d9dadd"/>
+            <rect x="220" y="66" width="78" height="44" rx="7" fill="#d9dadd"/>
+            <path d="M61 60 V 44 H 160 V 60" fill="none" stroke="#3f9fe0" stroke-width="1.5"/>
+            <path d="M160 60 V 44 H 259 V 60" fill="none" stroke="#3f9fe0" stroke-width="1.5"/>
+            <path d="M160 116 V 132 H 61 V 116" fill="none" stroke="#3f9fe0" stroke-width="1.5"/>
+            <circle cx="40" cy="88" r="5" fill="#e0189a"/>
+            <circle cx="55" cy="88" r="5" fill="#3abff8"/>
+            <circle cx="160" cy="88" r="5" fill="#e0189a"/>
+          </svg>
+          <div class="tile-body">
+            <p class="tile-kicker">State machine</p>
+            <h2>Sorted by state</h2>
+            <p>The explainer's own diagram, live — the five bodies sliding between Searching, Conversing and Resting as they change.</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </body>
+</html>

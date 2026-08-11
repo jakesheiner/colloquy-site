@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Machine-local Claude Code permissions; launch.json is shared and stays tracked.
+.claude/settings.local.json
+
+# The raw Rhino export the meshes were picked out of — 17MB, and every file in it
+# that the page actually uses already lives in public/models.
+colloquy models/
+
+# Meshes: only what `PARTS` in src/clip.js loads is tracked.
+#
+# A clip's scene graph names ~25 meshes and the page deliberately draws a subset
+# (see the README) — the unused ones are 14MB, most of it splodges. So the
+# default here is "not tracked", the same discipline PARTS itself uses: adding a
+# mesh to PARTS means adding a line below, or it will not be in the repo and the
+# part will silently fail to load for anyone who clones it.
+public/models/*
+!public/models/beam-260316.obj
+!public/models/female-shell-body-260316.obj
+!public/models/female-shell-head-260316.obj
+!public/models/male-body-260316.obj
+!public/models/female-mirror-260703.obj
+!public/models/female-mirror-armature-260703.obj
+!public/models/female-interiorled-upper-260316.obj
+!public/models/female-interiorled-middle-260316.obj
+!public/models/female-interiorled-lower-260316.obj
+!public/models/male-lightsource-ring-260712b.obj
+!public/models/male-lightsource-support.obj

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drive over time · Colloquy explorations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./explore.css" />
+    <style>
+      .stage { display: flex; flex-direction: column; gap: 20px; }
+
+      /* One relative frame holds every timeline AND the transport, so a single
+         absolutely-positioned marker can sweep straight down through them all. */
+      .timeline {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        --gutter: 138px; /* label column; the plot column starts here */
+        --frac: 0;       /* playhead position, 0…1, set on every frame */
+      }
+
+      .tracks { display: block; }
+
+      .track {
+        display: grid;
+        grid-template-columns: var(--gutter) 1fr;
+        align-items: center;
+        padding: 13px 0;
+        border-top: 1px solid var(--hair);
+      }
+      .track:first-child { border-top: 0; }
+
+      .track-id { padding-right: 16px; }
+      .track-id .who { display: flex; align-items: baseline; gap: 8px; }
+      .track-id .who b { font: 600 17px/1 var(--condensed); letter-spacing: 0.02em; }
+      .track-id .who small { font: 400 11px/1 var(--condensed); color: var(--faint); letter-spacing: 0.06em; text-transform: uppercase; }
+      .track-id .read { margin-top: 9px; }
+      .track-id .read .state { display: block; font: 500 13px/1.2 var(--condensed); color: var(--mute); text-transform: capitalize; }
+      .track[data-state='engaging'] .read .state { color: var(--ink); font-weight: 600; }
+      .track-id .read .nums { margin-top: 3px; font: 500 12px/1 var(--condensed); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+      .track-id .read .nums em { font-style: normal; margin-right: 10px; }
+      .track-id .read .nums .o { color: #c69a1e; }
+      .track-id .read .nums .p { color: #3f8626; }
+
+      /* drive O stacked above drive P */
+      .track-plots { display: flex; flex-direction: column; gap: 4px; }
+      .plot-wrap { position: relative; }
+      .plot-tag {
+        position: absolute; left: 3px; top: 1px;
+        font: 600 10px/1 var(--condensed); letter-spacing: 0.08em; text-transform: uppercase;
+        pointer-events: none;
+      }
+      .plot-tag.o { color: #c69a1e; }
+      .plot-tag.p { color: #3f8626; }
+
+      .chart-plot { width: 100%; height: 44px; display: block; overflow: visible; }
+      .plot-grid { stroke: var(--hair); stroke-width: 1; }
+      .plot-spent { stroke: rgba(19,19,22,0.28); stroke-width: 1; stroke-dasharray: 3 3; }
+      .plot-o { fill: none; stroke: var(--drive-o); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+      .plot-p { fill: none; stroke: var(--drive-p); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+      .plot-dot-o { fill: var(--drive-o); }
+      .plot-dot-p { fill: var(--drive-p); }
+
+      /* the one marker: a single line down through every timeline, its foot
+         sitting on the transport thumb. Positioned in the shared plot column. */
+      .cursor {
+        position: absolute; top: 0; bottom: 0;
+        left: calc(var(--gutter) + var(--frac) * (100% - var(--gutter)));
+        width: 0;
+        border-left: 1.5px solid var(--ink);
+        opacity: 0.5;
+        pointer-events: none;
+        z-index: 3;
+      }
+
+      /* transport re-laid out so its slider occupies the exact same plot column
+         as the graphs — play button + clock tuck into the label gutter. */
+      .transport {
+        display: grid;
+        grid-template-columns: var(--gutter) 1fr;
+        align-items: center;
+        gap: 0;
+      }
+      .transport-play { grid-column: 1; grid-row: 1; }
+      .transport-range { grid-column: 2; grid-row: 1; }
+      .transport-time { grid-column: 1; grid-row: 2; text-align: left; min-width: 0; margin-top: 10px; }
+      /* a thin bar thumb so it reads as the base of the single marker */
+      .transport-range { background: var(--hair); }
+      .transport-range::-webkit-slider-thumb { width: 3px; height: 22px; border-radius: 1px; background: var(--ink); border: none; box-shadow: none; }
+      .transport-range::-moz-range-thumb { width: 3px; height: 22px; border-radius: 1px; background: var(--ink); border: none; }
+
+      .cardfoot { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+      .spentkey { display: flex; align-items: center; gap: 8px; font: 400 13px/1 var(--condensed); color: var(--mute); }
+      .spentkey svg { display: block; }
+
+      .status { font: 400 15px/1.5 var(--condensed); color: var(--mute); }
+
+      @media (max-width: 620px) {
+        .timeline { --gutter: 104px; }
+        .track-id .who small { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="page-head">
+        <p class="crumbs"><a href="./">Explorations</a><span>/</span>Drive over time</p>
+        <h1>Drive over time</h1>
+        <p>The floating card, re-cut as a line graph. Each body's two appetites — drive&nbsp;O stacked above drive&nbsp;P — plotted across the whole two minutes, rising while a drive goes unmet and falling once it is answered. One marker runs down through every timeline, in step with the player. Play it, or drag to scrub.</p>
+      </div>
+
+      <div class="card stage" id="stage">
+        <p class="status" id="status">Loading the recording…</p>
+      </div>
+    </div>
+
+    <script type="module">
+      import { loadTrack, Playhead, mountTransport, COLOURS } from './track.js';
+
+      const stage = document.getElementById('stage');
+      const status = document.getElementById('status');
+
+      // Chart geometry, in the plot's own viewBox units. No horizontal padding:
+      // the data spans the full plot width so time maps straight onto the shared
+      // marker/transport column.
+      const W = 600, H = 44, PADY = 5;
+      const SAMPLES = 480; // downsample the ~2500 ticks to a smooth, cheap path
+
+      const yFor = (v) => PADY + (1 - Math.min(1, v)) * (H - PADY * 2);
+
+      function pathFor(series, count) {
+        let d = '';
+        for (let s = 0; s <= SAMPLES; s++) {
+          const row = Math.round((s / SAMPLES) * (count - 1));
+          const x = (row / (count - 1)) * W;
+          const y = yFor(series[row]);
+          d += (s === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
+        }
+        return d;
+      }
+
+      // One single-series plot (drive O or drive P). The trace is clipped to a
+      // rectangle that grows with the playhead, so the line is drawn on as time
+      // advances rather than shown all at once.
+      function plotSVG(series, count, drive, spentY, uid) {
+        return (
+          `<svg class="chart-plot" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
+            `<clipPath id="${uid}" clipPathUnits="userSpaceOnUse">` +
+              `<rect class="plot-reveal" x="0" y="0" width="0" height="${H}"></rect>` +
+            `</clipPath>` +
+            `<line class="plot-grid" x1="0" y1="${PADY}" x2="${W}" y2="${PADY}"></line>` +
+            `<line class="plot-grid" x1="0" y1="${H-PADY}" x2="${W}" y2="${H-PADY}"></line>` +
+            `<line class="plot-spent" x1="0" y1="${spentY.toFixed(1)}" x2="${W}" y2="${spentY.toFixed(1)}"></line>` +
+            `<path class="plot-${drive}" d="${pathFor(series, count)}" clip-path="url(#${uid})"></path>` +
+            `<circle class="plot-dot-${drive}" r="2.6" cx="0" cy="${H-PADY}"></circle>` +
+          `</svg>`
+        );
+      }
+
+      try {
+        const track = await loadTrack();
+        stage.innerHTML = '';
+
+        const timeline = document.createElement('div');
+        timeline.className = 'timeline';
+
+        const tracks = document.createElement('div');
+        tracks.className = 'tracks';
+        timeline.append(tracks);
+
+        const spentY = PADY + (1 - track.lowerMark) * (H - PADY * 2);
+        const rows = track.units.map((unit) => {
+          const o = track.series(unit.index, 'o');
+          const p = track.series(unit.index, 'p');
+
+          const row = document.createElement('div');
+          row.className = 'track';
+          row.innerHTML =
+            `<div class="track-id">` +
+              `<div class="who"><span class="dot dot--${unit.side}"></span>` +
+                `<b>${unit.label}</b><small>${unit.side}</small></div>` +
+              `<div class="read"><span class="state">—</span>` +
+                `<span class="nums"><em class="o">O 0</em><em class="p">P 0</em></span></div>` +
+            `</div>` +
+            `<div class="track-plots">` +
+              `<div class="plot-wrap"><span class="plot-tag o">drive O</span>` +
+                plotSVG(o, track.count, 'o', spentY, `clip-o-${unit.index}`) + `</div>` +
+              `<div class="plot-wrap"><span class="plot-tag p">drive P</span>` +
+                plotSVG(p, track.count, 'p', spentY, `clip-p-${unit.index}`) + `</div>` +
+            `</div>`;
+          tracks.append(row);
+
+          const reveals = row.querySelectorAll('.plot-reveal');
+          return {
+            unit, o, p, el: row,
+            revealO: reveals[0],
+            revealP: reveals[1],
+            dotO: row.querySelector('.plot-dot-o'),
+            dotP: row.querySelector('.plot-dot-p'),
+            state: row.querySelector('.state'),
+            numO: row.querySelector('.nums .o'),
+            numP: row.querySelector('.nums .p'),
+          };
+        });
+
+        const transportHost = document.createElement('div');
+        timeline.append(transportHost);
+
+        const cursor = document.createElement('div');
+        cursor.className = 'cursor';
+        timeline.append(cursor);
+
+        stage.append(timeline);
+
+        const foot = document.createElement('div');
+        foot.className = 'cardfoot';
+        foot.innerHTML =
+          '<div class="legend">' +
+            '<span><i class="swatch-o"></i>drive O</span>' +
+            '<span><i class="swatch-p"></i>drive P</span>' +
+          '</div>' +
+          '<div class="spentkey"><svg width="26" height="6" aria-hidden="true"><line x1="0" y1="3" x2="26" y2="3" stroke="rgba(19,19,22,0.4)" stroke-width="1" stroke-dasharray="3 3"/></svg>spent below the mark</div>';
+        stage.append(foot);
+
+        const STATE_WORD = {
+          'engaging-partner': 'conversing',
+          'satisfaction-search': 'searching',
+          'satisfied-and-indifferent': 'resting',
+        };
+
+        const playhead = new Playhead(track, render);
+        const syncTransport = mountTransport(transportHost, track, playhead);
+
+        function render(rowIdx, fraction) {
+          syncTransport(rowIdx);
+          timeline.style.setProperty('--frac', fraction);
+          const dataX = fraction * W;
+          for (const r of rows) {
+            const ov = r.o[rowIdx], pv = r.p[rowIdx];
+            r.revealO.setAttribute('width', dataX);
+            r.revealP.setAttribute('width', dataX);
+            r.dotO.setAttribute('cx', dataX);
+            r.dotP.setAttribute('cx', dataX);
+            r.dotO.setAttribute('cy', yFor(ov));
+            r.dotP.setAttribute('cy', yFor(pv));
+            const st = track.stateKeyAt(rowIdx, r.unit.index);
+            r.state.textContent = STATE_WORD[st] ?? '—';
+            r.el.dataset.state = st === 'engaging-partner' ? 'engaging' : '';
+            r.numO.textContent = 'O ' + Math.round(ov * track.ceiling);
+            r.numP.textContent = 'P ' + Math.round(pv * track.ceiling);
+          }
+        }
+
+        playhead.emit();
+      } catch (err) {
+        status.textContent = `Could not load the recording: ${err.message}`;
+        console.error(err);
+      }
+    </script>
+  </body>
+</html>
