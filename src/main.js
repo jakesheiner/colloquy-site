@@ -65,8 +65,17 @@ const RENDER_OPTIONS = {
 // The scene is modelled Z-up in inches, so elevation is measured off the
 // XY-plane and the camera orbits its subject.
 const CAMERA = {
-  // Breathing room around the subject once projected onto the frame.
-  margin: 1.16,
+  // Breathing room around the subject once projected onto the frame. Multiplies
+  // the fitted half-angle, so 1.04 pulls back 4% from a subject that exactly
+  // fills its axis.
+  //
+  // It was 1.16, which together with the old SAFE_EDGE left the piece filling
+  // about three quarters of the frame — fine when the scene was the whole page
+  // and the slack read as air, awkward inside a drawn border, where it reads as
+  // the picture not filling its box. The bodies swing, so this cannot go to 1:
+  // the shots are baked against one pose and a body that swings outward after
+  // the bake needs somewhere to go.
+  margin: 1.04,
 };
 
 // The shot list, in the order the scroll plays them: the classic three-quarter
@@ -238,12 +247,11 @@ const GLOW = {
 
 const stage = document.getElementById('stage');
 const errorEl = document.getElementById('stage-error');
+// The track the captions are laid down; it scrolls past the held frame.
 const beatsEl = document.getElementById('beats');
-const beatBox = document.getElementById('beat-box');
-// The band under the frame. The readout used to hang off the bottom of the
-// caption box; now the caption is display type above the picture and this is its
-// own band below it.
-const driveSlot = document.getElementById('drive-slot') ?? beatBox;
+// The band under the frame, in the sticky column, so the readout stays with the
+// picture it belongs to rather than scrolling away with the words.
+const driveSlot = document.getElementById('drive-slot');
 const pinSection = document.getElementById('pin-section');
 
 function fail(message) {
@@ -745,23 +753,26 @@ const engagedPair = (() => {
   const plan = shotById('plan');
 
   /**
-   * Give every camera move exactly one scroll step.
+   * Run each camera move between two script moments, and hold it still between.
    *
-   * The page steps between stops, and a move spanning several of them is taken in
-   * three or four goes with a pause inside each — a camera move reads as one
-   * gesture or it reads as nothing. So a move begins on one stop and is over by
-   * the next, and the stretches between are made to *hold* by repeating the
-   * previous shot at the moment the move starts, which forces the interpolator's
-   * slope to zero on both sides of the repeat.
+   * The page used to step from moment to moment, and this existed so a move
+   * could not be taken in three goes with a pause inside each. The scroll is
+   * free now, but the shape is still right: a move that runs the whole length of
+   * the pin never reads as a move, it reads as drift. Tying each one to the
+   * stretch between two moments keeps it a gesture with a beginning and an end,
+   * and ties it to the line the reader is passing while it happens.
+   *
+   * The stretches between are made to *hold* by repeating the previous shot at
+   * the moment the move starts, which forces the interpolator's slope to zero on
+   * both sides of the repeat.
    *
    * The grid is the script's own moments, not the raw events: those are what the
-   * reader actually stops on, and a keyframe snapped to anything else lands a
-   * sliver to one side of a stop.
+   * lines on the track are placed against, and a keyframe on anything else drifts
+   * away from the words describing it.
    */
   const grid = scriptAt.map((entry) => entry.at);
   const atTick = (tick) => (tick === null ? null : clamp01(progressOfTick(tick)));
-  // The nearest stop below `at`, or null if there is none — the stop the reader
-  // was resting on before the one at `at`.
+  // The nearest moment below `at`, or null if there is none.
   const prevStopBefore = (at) => {
     let out = null;
     for (const stop of grid) {
@@ -984,15 +995,16 @@ const _origin = new Vec();
 // Shots are solved on a stand-in so a half-solved pose is never what gets drawn.
 const scratch = viewer.camera.clone();
 
-// Clearance between the piece and the edges of the *window*, in NDC — so 0.1 is
-// a twentieth of the frame held back on each side.
+// Clearance between the piece and the edges of the frame, in NDC — so 0.02 is a
+// hundredth of the frame held back on each side.
 //
-// Without it the fit runs to the frame edge, and the outermost female was
-// arriving 9px past the left of a 1280px window on the opening shot and 2px
-// short of it on the plan view: cut off, or close enough to read as cut off.
-// The right-hand side never needed it — the box is already inset there — which
-// is exactly why the piece sat hard against the left with 600px going spare.
-const SAFE_EDGE = 0.1;
+// It was 0.1, from when the scene was full bleed and ran under the caption: the
+// outermost female was arriving 9px past the left of a 1280px window, and a tenth
+// of the frame was the cheapest way to stop it being clipped. There is a drawn
+// border now, and a subject held a tenth of the frame clear of it just reads as
+// the picture not filling its own box. This is the smallest inset that keeps the
+// geometry off the border line itself.
+const SAFE_EDGE = 0.02;
 
 /**
  * The part of the frame the piece may be fitted into, in NDC (−1…1, y up).
@@ -1227,6 +1239,17 @@ function applyFraming() {
   // `camera.aspect` below: this page drives the view, so it owns these.
   viewer.renderer.setViewport(0, 0, width, height);
 
+  // And the scissor, which is a *second*, independent letterbox — the one that
+  // actually clips. The player pins the drawn region to its own configured
+  // aspect: measured on a 1620×1506 buffer it was scissoring to
+  // [0, 246, 1620, 1012], a band of exactly 1.6, with ~247px dead at the top and
+  // bottom. Fixing the viewport alone did nothing about it, so the scene was
+  // drawn into that band and bodies were cut off along its edge while the border
+  // sat out at the frame. Off, so the render reaches all four edges and the
+  // border is the edge of the camera's view.
+  viewer.renderer.setScissorTest(false);
+  viewer.renderer.setScissor(0, 0, width, height);
+
   if (baking) return;
   if (!baked || width !== bakedWidth || height !== bakedHeight) {
     if (!bakeShots(aspect, width, height)) return;
@@ -1307,370 +1330,91 @@ for (const beat of beats) {
   beat.el = block;
 }
 
-// The line changes *during* the move to the next stop, not at the instant the
-// scroll settles onto it — switching exactly on arrival reads as mechanical,
-// synced to the stop rather than to what the camera is doing.
-//
-// The switch point sits a little before each stop, as a share of the gap back to
-// the previous one: half of a short gap, which lands the switch at the step's
-// midpoint. But it is capped in absolute progress, because the gaps are not
-// comparable — the searching scrub is twenty-five times longer than the rest —
-// and half of the long ones would announce a moment thirty seconds before the
-// recording reaches it, contradicting the live drive readout below. Capped, the
-// long steps switch late (near arrival) where they have to be to stay honest;
-// the short camera steps switch mid-move where it was asked for. `BEAT_LEAD_MAX`
-// is roughly a third of a second of scroll at the current speed.
-const BEAT_LEAD_MAX = 0.028;
-beats.forEach((beat, i) => {
-  if (i === 0) {
-    beat.switchAt = -Infinity;
-    return;
-  }
-  const gap = beat.at - beats[i - 1].at;
-  beat.switchAt = beat.at - Math.min(BEAT_LEAD_MAX, gap * 0.5);
-});
+// There is no `switchAt` any more. It existed because one box held one line at a
+// time and something had to decide when to swap it — the swap was pulled a
+// little ahead of each stop so it happened during the camera move rather than on
+// the settle. A line's position on the track is that timing now, and the reader
+// sets it by scrolling.
+
+// --- the caption track --------------------------------------------------------
 
 /**
- * Reserve the caption band once, for the *longest* line in the script.
+ * Lay the captions down the pin, each at the scroll position of its moment.
  *
- * The beats are stacked on top of each other, so the stack has no height of its
- * own and something has to give it one. It used to be given the height of
- * whichever beat was showing, easing open and closed around each line.
+ * The lines used to be stacked on top of each other in a fixed box and swapped
+ * by crossfade. They are a track now: one block per moment, scrolling past the
+ * held frame, so the reader moves through the text the way they move through the
+ * recording rather than watching it change under them.
  *
- * That cannot work here, and the reason is worth keeping: this band is a flex
- * item above the frame, and the frame takes the height that is left. So a
- * caption going from one line to two shrank the frame, which resized the canvas,
- * which re-baked every shot against the new aspect — the whole scene jumped
- * while the text was still animating. Reserving the tallest line up front means
- * the band never changes size, so the frame never does either, and a two-line
- * caption arrives without touching the picture.
+ * Positioned in pixels off the same measurement `pinProgress` reads —
+ * `offsetHeight` minus `innerHeight` — rather than a `vh` calc, so the two cannot
+ * disagree about what a viewport is. They would on any mobile browser whose
+ * toolbars slide away, where `100vh` is the large viewport and `innerHeight` is
+ * whatever is on screen this second, and every line would sit a little off its
+ * moment.
  *
- * The cost is a little empty space above the short lines, which is invisible on
- * a white page. Measured rather than fixed because the lines are written from
- * the recording: how many there are and how long they run is not known here.
+ * The offset inside the viewport puts a line's own middle level with the middle
+ * of the frame at exactly the progress it belongs to, so the words and what they
+ * describe arrive together.
  */
-function reserveBeatBand() {
-  let tallest = 0;
-  for (const beat of beatsEl.children) tallest = Math.max(tallest, beat.offsetHeight);
-  if (tallest > 0) beatsEl.style.height = `${tallest}px`;
-}
-
-let currentBeat = -1;
-function updateBeats(progress) {
-  // Against `switchAt`, not `at`: the stops are still at `at` (the anchors read
-  // that), but the text flips a little ahead of each so the change happens
-  // in-flight rather than on the settle.
-  let next = 0;
-  for (let i = 0; i < beats.length; i++) if (progress >= beats[i].switchAt) next = i;
-  if (next === currentBeat) return;
-  currentBeat = next;
-  beats.forEach((beat, i) => beat.el.classList.toggle('is-active', i === next));
-  // Nothing to resize: the band is already as tall as the longest line.
-}
-
-// Show the first beat straight away: the box is a fixed piece of the stage, and
-// an empty one would be visible the moment the stage is.
-updateBeats(0);
-// And give the band its height now rather than waiting on the observer below,
-// so the frame is never laid out against a zero-height caption.
-reserveBeatBand();
-
-// A line's height is only meaningful once the box has a width to wrap it in and
-// the condensed face has arrived — measured before either, the first beat came
-// out 345px tall in a 42px-wide box. So re-measure whenever the box is laid out
-// at a new width, which covers the first real layout, the font swap and every
-// resize after. Watching the box rather than the window because the box is the
-// thing whose width decides the answer.
-//
-// Width only. A height change here is this function's own doing, and reacting to
-// it would resize the band, which resizes the frame, which re-bakes the shots.
-let observedWidth = 0;
-new ResizeObserver(([entry]) => {
-  const width = entry.contentRect.width;
-  if (width === observedWidth) return; // its own height change, not a reflow
-  observedWidth = width;
-  reserveBeatBand();
-}).observe(beatBox);
-
-if (document.fonts) document.fonts.ready.then(reserveBeatBand);
-
-// --- scroll anchors ----------------------------------------------------------
-
-// The page steps from one moment to the next. There is no free scrolling inside
-// the pin: every gesture lands on a moment, and the moments are exactly the
-// points where the line in the floating box changes — so `beats`, the very list
-// that box is built from, is the anchor list. Nothing is merged and nothing is
-// added for the camera's sake; if the text does not change there, the scroll
-// does not stop there.
-//
-// Derived rather than typed on purpose: the beats come out of the recording, so
-// a new clip re-points the stops with no edit here.
-//
-// Done with CSS scroll-snap rather than by taking the wheel over in JS. The
-// browser's snap runs on the compositor, survives a gesture being interrupted,
-// and leaves the trackpad, the scrollbar, the keyboard and assistive tech all
-// behaving the way the reader expects — a hand-rolled pager has to re-implement
-// all four and usually gets touch momentum wrong.
-function buildAnchors() {
-  const seen = new Set();
-  const kept = [];
-  // The end of the pin is the one stop that is not a text change. It has to be
-  // here, and it is where the swing up lands.
-  for (const at of [...beats.map((beat) => beat.at), 1]) {
-    const value = clamp01(at);
-    // Nothing stops inside the swing up. It is one move across the last stretch
-    // of the pin, and a stop in the middle of it is precisely what this whole
-    // arrangement exists to prevent — so the lines that fall in there keep their
-    // place in the text track and simply go past as the camera travels, rather
-    // than halting it. They are the ones being rewritten anyway.
-    if (panStartAt !== null && value > panStartAt + 1e-6 && value < panEndAt - 1e-6) continue;
-    // Two beats can fall on the same tick — a camera line and a state change,
-    // say. That is one stop, not two: a second marker in the same place is a
-    // snap point the reader can never leave in one gesture.
-    const key = value.toFixed(4);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    kept.push(Number(key));
-  }
-  return kept.sort((a, b) => a - b);
-}
-
-const anchors = buildAnchors();
-
-// The intro is a stop too — the page has to be able to rest on the title. It
-// sits outside the pin, so it is not one of the derived anchors; see the note in
-// `style.css` for why it is a marker rather than a snap-aligned section.
-const introSection = document.getElementById('intro');
-if (introSection) {
-  const marker = document.createElement('div');
-  marker.className = 'snap-anchor';
-  marker.setAttribute('aria-hidden', 'true');
-  marker.style.top = '0px';
-  introSection.append(marker);
-}
-
-const anchorEls = anchors.map(() => {
-  const marker = document.createElement('div');
-  marker.className = 'snap-anchor';
-  marker.setAttribute('aria-hidden', 'true');
-  pinSection.append(marker);
-  return marker;
-});
-
-/**
- * Put each marker where its progress actually falls.
- *
- * In pixels off the same measurement `pinProgress` reads — `offsetHeight` minus
- * `innerHeight` — rather than a `vh` calc, so the two cannot disagree about what
- * a viewport is. They would on any mobile browser whose toolbars slide away,
- * where `100vh` is the large viewport and `innerHeight` is whatever is on screen
- * this second; the anchors would then settle a little off every moment.
- */
-// Every stop, in document pixels, ascending. Rebuilt with the markers.
-let stops = [];
-
-function placeAnchors() {
+function placeBeats() {
   const travel = pinSection.offsetHeight - window.innerHeight;
   if (travel <= 0) return;
-  anchors.forEach((at, i) => {
-    anchorEls[i].style.top = `${(at * travel).toFixed(1)}px`;
-  });
-  // The intro's stop is the top of the page; the rest are the markers.
-  stops = [0, ...anchors.map((at) => pinSection.offsetTop + at * travel)];
-}
 
-placeAnchors();
-
-// Watching the pin rather than the window, for the same reason the beat box
-// watches itself: the pin's height is the thing that decides the answer, and it
-// is measured *after* layout. A `resize` listener reads `offsetHeight` while the
-// new height may not be in yet — caught in testing, where every anchor kept its
-// old pixel offset and the last three ended up past the end of the pin. The pin
-// is sized in `vh`, so this catches viewport height changes too, including the
-// mobile toolbar slide that never reliably fires `resize` at all.
-new ResizeObserver(placeAnchors).observe(pinSection);
-
-// --- stepping between the stops ----------------------------------------------
-
-// The scroll is driven from here rather than left to the browser's snap, for one
-// reason: **snap animation speed is not author-controllable.** There is no CSS
-// for it, and the browser's is a quick UI transition — right for landing on a
-// list item, too fast to watch a camera move and forty seconds of simulation go
-// by. Owning the animation is the only way to set how long a step takes.
-//
-// The CSS snap stays in `style.css` and is not wasted: it catches every scroll
-// this code does not handle — dragging the scrollbar, find-in-page, a fragment
-// link — so the page still cannot come to rest between moments. It is switched
-// off only for the duration of a step, because mandatory snapping applies to
-// scripted scrolls too and would yank each animation frame onto a stop.
-
-// The one number that sets how fast the page moves. Duration is strictly
-// proportional to distance — no floor, no ceiling — because the scroll position
-// *is* the playback clock: pixels map to ticks at a fixed rate, so a constant
-// scroll speed is the only thing that gives a constant speed on screen.
-//
-// It was clamped at first (700–2800ms) and that was the bug. A clamp is a speed
-// change: it made the ~100px steps between two bodies letting go crawl and the
-// ~2400px searching stretch run about eight times faster, so the scene visibly
-// sped up on the long jumps. Duration has to vary with distance for the speed
-// not to.
-//
-// The cost is that the longest step is genuinely long — the searching stretch is
-// two fifths of the page and about forty seconds of recording, so it takes ~4.8s
-// here. That is the trade: it cannot be shortened without speeding the scene up
-// again on exactly the jump this was raised about. Slower still is legitimate,
-// it just lengthens that one step in proportion (at the old *short*-step speed
-// it would run 17 seconds, which is why the clamp was there in the first place).
-const STEP_MS_PER_PX = 2.0;
-
-// After a step lands, wait for the input to go quiet before accepting another.
-// Trackpad momentum arrives as a long tail of wheel events, and without this one
-// flick would walk several moments at once — the thing the stepping is for.
-const QUIET_MS = 140;
-
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-let stepping = false;
-let steppingSince = 0;
-let quietUntil = 0;
-
-// Ease in and out. The point of a slow step is the middle of it, so the curve
-// spends its time there and arrives without a bump at either end.
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-/**
- * The stop a step in `direction` should land on.
- *
- * Read off the live scroll position rather than a remembered index, so it is
- * still right after anything that moved the page without going through here — a
- * scrollbar drag, a reload restoring position, the browser's own snap.
- */
-function stopToward(direction) {
-  const y = window.scrollY;
-  if (direction > 0) {
-    const next = stops.findIndex((stop) => stop > y + 1);
-    return next === -1 ? stops.length - 1 : next;
-  }
-  for (let i = stops.length - 1; i >= 0; i--) if (stops[i] < y - 1) return i;
-  return 0;
-}
-
-function goToStop(index) {
-  const to = stops[Math.max(0, Math.min(stops.length - 1, index))];
-  const from = window.scrollY;
-  const distance = Math.abs(to - from);
-  if (distance < 1) return;
-
-  if (reduceMotion.matches) {
-    window.scrollTo(0, to);
-    quietUntil = performance.now() + QUIET_MS;
-    return;
-  }
-
-  const ms = distance * STEP_MS_PER_PX;
-  const root = document.documentElement;
-  const snap = root.style.scrollSnapType;
-  root.style.scrollSnapType = 'none';
-  stepping = true;
-  steppingSince = performance.now();
-
-  const start = performance.now();
-  const advance = (now) => {
-    const t = Math.min(1, (now - start) / ms);
-    window.scrollTo(0, from + (to - from) * easeInOut(t));
-    if (t < 1) {
-      requestAnimationFrame(advance);
-      return;
-    }
-    root.style.scrollSnapType = snap;
-    stepping = false;
-    quietUntil = performance.now() + QUIET_MS;
-  };
-  requestAnimationFrame(advance);
-}
-
-/**
- * True if a new step may start now — and if not, holds the gate shut a little
- * longer, so a momentum tail is one step and not several.
- */
-function gateOpen() {
-  const now = performance.now();
-  // A step that never finished must not lock the page out of scrolling for good.
-  // `requestAnimationFrame` does not run in a background tab, so an animation
-  // interrupted by a tab switch can be left mid-flight indefinitely — hit for
-  // real in testing, after which no gesture did anything ever again. Well past
-  // the longest a step can legitimately take, give up on it.
+  // Where in the viewport a line should sit when the scroll is on its moment.
   //
-  // Measured off the stops rather than a constant: with duration proportional to
-  // distance, the longest possible step is End-from-the-top, the whole page.
-  const longestStepMs = stops.length > 1
-    ? (stops[stops.length - 1] - stops[0]) * STEP_MS_PER_PX
-    : 0;
-  if (stepping && now - steppingSince > longestStepMs * 2 + 1000) {
-    stepping = false;
-    document.documentElement.style.scrollSnapType = '';
+  // Beside the frame, that is the frame's own middle rather than the window's:
+  // the readout hangs under the picture, so the two are ~60px apart and a line
+  // centred on the window sits visibly low against the thing it describes.
+  // Stacked under the picture — the narrow layout — it is the middle of what is
+  // left below, or the words would land behind it.
+  //
+  // Both are measured against the sticky column, which is at the top of the
+  // viewport for the whole pinned scroll, so its own coordinates are the
+  // viewport's.
+  const sticky = document.querySelector('.pin-sticky');
+  const frame = document.querySelector('.frame');
+  const stacked = sticky ? sticky.offsetWidth > pinSection.clientWidth * 0.9 : false;
+  let centre;
+  if (stacked && sticky) {
+    centre = sticky.offsetHeight + (window.innerHeight - sticky.offsetHeight) / 2;
+  } else if (frame) {
+    centre = frame.offsetTop + frame.offsetHeight / 2;
+  } else {
+    centre = window.innerHeight / 2;
   }
-  if (stepping || now < quietUntil) {
-    quietUntil = Math.max(quietUntil, now + QUIET_MS);
-    return false;
+
+  for (const beat of beats) {
+    const offset = centre - beat.el.offsetHeight / 2;
+    beat.el.style.top = `${(beat.at * travel + offset).toFixed(1)}px`;
   }
-  return true;
 }
 
-function step(direction) {
-  if (gateOpen()) goToStop(stopToward(direction));
-}
+placeBeats();
 
-window.addEventListener(
-  'wheel',
-  (event) => {
-    // Ctrl/meta + wheel is the browser's zoom, not a scroll — leave it alone.
-    if (event.ctrlKey || event.metaKey) return;
-    // The page has no free scroll: the wheel chooses a direction, not a distance.
-    event.preventDefault();
-    if (Math.abs(event.deltaY) < 2) return;
-    step(event.deltaY > 0 ? 1 : -1);
-  },
-  { passive: false }
-);
+// Watching the pin rather than the window: its height is the thing that decides
+// the answer, and it is measured *after* layout. A `resize` listener reads
+// `offsetHeight` while the new height may not be in yet — caught in testing,
+// where every line kept its old pixel offset and the last few ended up past the
+// end of the pin. The pin is sized in `vh`, so this catches viewport height
+// changes too, including the mobile toolbar slide that never reliably fires
+// `resize` at all.
+new ResizeObserver(placeBeats).observe(pinSection);
 
-let touchFrom = null;
-window.addEventListener('touchstart', (event) => {
-  touchFrom = event.touches[0]?.clientY ?? null;
-}, { passive: true });
+// The lines wrap at a width the window decides, so their heights change with it
+// and the centring above goes stale. Same guard as the pin.
+new ResizeObserver(placeBeats).observe(beatsEl);
 
-// Native touch scrolling has to go, or the finger drags the page off the stops.
-// Only for a single finger — two is a pinch, and blocking that takes zoom away.
-window.addEventListener('touchmove', (event) => {
-  if (event.touches.length === 1) event.preventDefault();
-}, { passive: false });
+// And the frame, because the lines are centred on *it*. Without this they keep
+// the positions they were given against a frame that has since been laid out at
+// a different height — measured, 338px adrift on first load.
+new ResizeObserver(placeBeats).observe(document.querySelector('.frame'));
 
-window.addEventListener('touchend', (event) => {
-  if (touchFrom === null) return;
-  const travelled = touchFrom - (event.changedTouches[0]?.clientY ?? touchFrom);
-  touchFrom = null;
-  if (Math.abs(travelled) < 24) return; // a tap, or a flinch
-  step(travelled > 0 ? 1 : -1);
-}, { passive: true });
+// A line's height is only meaningful once the condensed face has arrived —
+// measured against the fallback, every line is centred against the wrong height
+// and sits a few pixels off its moment.
+if (document.fonts) document.fonts.ready.then(placeBeats);
 
-// Keyboard is not an afterthought here: with the wheel taken over, these are the
-// only other way through the page, and they have to land on the same stops.
-window.addEventListener('keydown', (event) => {
-  if (event.metaKey || event.ctrlKey || event.altKey) return;
-  const target = event.target;
-  if (target instanceof HTMLElement && target.isContentEditable) return;
-
-  let index = null;
-  if (['ArrowDown', 'PageDown', ' ', 'Spacebar'].includes(event.key)) index = stopToward(1);
-  else if (['ArrowUp', 'PageUp'].includes(event.key)) index = stopToward(-1);
-  else if (event.key === 'Home') index = 0;
-  else if (event.key === 'End') index = stops.length - 1;
-  if (index === null) return;
-
-  event.preventDefault();
-  // Through the same gate as the wheel, so a held key does not stack up steps.
-  if (gateOpen()) goToStop(index);
-});
 
 // --- the drive readout -------------------------------------------------------
 
@@ -1835,7 +1579,8 @@ function frame() {
   if (progress !== lastProgress) {
     lastProgress = progress;
     player.seekFraction(progress);
-    updateBeats(progress);
+    // The captions need nothing here: they are laid down the page and the scroll
+    // moves them, like everything else on it.
     updateDrives(progress);
   }
 

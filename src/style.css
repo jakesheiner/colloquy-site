@@ -41,44 +41,11 @@ body {
   background: var(--bg);
 }
 
-/* The page steps from moment to moment. `mandatory` means the scroll has no
-   valid resting place other than a marker, so every gesture lands on one — there
-   is no free scrolling through the pin. The markers are placed by `src/main.js`
-   at exactly the points where the line in the floating box changes. */
-html {
-  scroll-snap-type: y mandatory;
-}
-
-/* Zero-size and inert: these exist only to be snap targets. `start` aligns each
-   one with the top of the viewport, which is exactly where `pinProgress` reads
-   its progress from.
-
-   `scroll-snap-stop: always` is what makes it one moment per gesture rather than
-   one moment per *rest*. Without it a flick with any momentum sails past several
-   markers and snaps to whichever it happens to land near, which skips moments —
-   and skipping is the thing this is meant to prevent. With it the scroll is not
-   allowed to pass a marker, so a hard fling advances exactly one. */
-.snap-anchor {
-  position: absolute;
-  left: 0;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
-/* The intro needs to be a stop of its own — under `mandatory` a section with no
-   snap point is not a place the page can rest, and the reader would be pulled
-   off the title and onto the stage before reading a word of it.
-
-   It gets a marker rather than `scroll-snap-align` on the section itself,
-   because the section is taller than the viewport and a snap area larger than
-   the snapport is satisfied by *any* offset that keeps the snapport inside it.
-   That is a band, not a point: measured here as 67px of free scrolling at the
-   top of the page, which is exactly the thing this is supposed to remove. The
-   marker gives it a single position. `position: relative` is what the marker
-   hangs off. */
+/* The scroll is the reader's. There was a scroll-snap rig here, and a hand-rolled
+   pager in `src/main.js` on top of it, so every gesture landed on exactly one
+   moment and the page could not rest between them. Both are gone: the captions
+   are laid down a track now and reading them *is* the scrolling, so being stopped
+   at each one fought the thing it was meant to serve. */
 .intro {
   position: relative;
 }
@@ -199,25 +166,43 @@ h1 {
   height: 780vh;
 }
 
-/* Three bands in a column: the line, the picture, the readout. The picture is
-   the only one that flexes, so the type above it and the readout below it keep
-   their size and the frame takes whatever height is left. */
+/* Two columns: the picture on the left, the lines running down the right.
+
+   Not sticky itself — only the left column is. This has to be as tall as the
+   section so the track inside it has the full scroll to lay lines down; making
+   the whole thing sticky would pin the words too, and then nothing would move. */
 .pin-stage {
+  position: relative;
+  /* The full height of the section, so the track has the whole scroll to lay
+     lines down. */
+  height: 100%;
+  padding: 0 clamp(16px, 4vw, 56px);
+}
+
+/* The left column: the picture, held for the whole pinned scroll, with its
+   readout under it. Sticky rather than fixed so it releases at the end of the
+   section instead of riding over whatever follows. */
+.pin-sticky {
   position: sticky;
   top: 0;
   height: 100svh;
-  width: 100%;
-  overflow: hidden;
-  background: var(--bg);
+  /* The left column. In normal flow, so it can be sticky; the track is taken out
+     of flow and laid over the right of the same box. */
+  width: 58%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: clamp(18px, 2.4vh, 32px);
-  padding: clamp(20px, 4vh, 44px) clamp(16px, 5vw, 64px);
+  gap: clamp(14px, 2vh, 24px);
+  padding: clamp(20px, 4vh, 44px) 0;
+  /* Its own stacking context, so the track cannot slide over the frame's edge. */
+  z-index: 1;
+  background: var(--bg);
 }
 
-/* The frame. The scene is no longer the page — it is a picture on it, held in
-   the middle with the line above and the readout below.
+/* The frame. It is exactly the camera's view: the canvas fills it, and
+   `applyFraming` sets `camera.aspect` from the canvas every frame, so the border
+   is drawn on the edges of the rendered image and nothing is letterboxed inside
+   it. Its size comes from the column — it does not change while scrolling, and
+   only the camera moves.
 
    `min-height: 0` is what lets it actually shrink: a flex item defaults to its
    content's minimum, and without this the frame refuses to give height back on a
@@ -226,7 +211,6 @@ h1 {
   position: relative;
   flex: 1;
   min-height: 0;
-  width: min(1180px, 100%);
   border: 1px solid var(--line);
   background: var(--bg);
   overflow: hidden;
@@ -260,61 +244,45 @@ h1 {
 }
 
 /* ---------------------------------------------------------------
-   The line — one caption at a time, large and centred above the
-   frame. It does not move: scroll swaps what is in it, one beat
-   crossfading into the next in place.
+   The lines — one per moment, laid down a track beside the frame.
+   They scroll; the picture does not. Reading them is the scrolling.
 ------------------------------------------------------------------ */
-/* Above the picture rather than over it, so it needs no scrim, no blur and no
-   border to separate itself from the scene — it is simply on the page. That is
-   also why `safeArea()` in main.js no longer reserves anything: nothing overlaps
-   the frame any more, and the piece gets all of it. */
-.pin-text {
-  width: min(880px, 100%);
-  text-align: center;
-  /* The type is the loudest thing here; the frame edge below should not have to
-     compete with it for the same few pixels. */
-  flex: none;
+/* The track spans the whole pinned section, and each line is placed absolutely
+   inside it by `placeBeats()` in main.js at the scroll position of its own
+   moment. Absolute rather than in flow because the spacing is not a design
+   choice — it is where the recording puts each moment, and the gaps between them
+   are wildly uneven (the searching stretch is twenty-five times the others). */
+/* Taken out of flow and laid over the right of the section, rather than sat
+   beside the frame as a column.
+
+   That is deliberate, and it is the whole reason this works: `placeBeats()`
+   positions each line at `at × travel` measured from the top of the *section*.
+   As a flow sibling the track picked up whatever offset the layout gave it — and
+   on a narrow window, where it stacked under the picture, that offset was
+   hundreds of pixels and every line sat that far from its moment. Out of flow,
+   its origin is the section's origin in both layouts and the arithmetic holds. */
+.beat-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: clamp(16px, 4vw, 56px);
+  width: 34%;
+}
+
+.beat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Nothing here should swallow a drag or a text selection meant for the page. */
   pointer-events: none;
 }
 
-/* Beats are stacked on top of each other, so the stack has no height of its own
-   — main.js sets it once, to the tallest line in the script.
-
-   Deliberately not transitioned. This band sits above the frame and the frame
-   takes the height that is left, so animating this would animate the canvas's
-   size, re-baking every shot on every frame of the animation. It is a fixed
-   reservation now, and the only thing that changes it is a resize. */
-.beat-stack {
-  position: relative;
-  height: 0;
-}
-
-/* Every beat occupies the same spot; only the active one is visible. The small
-   rise on the way in gives the swap a direction without moving the box.
-
-   Anchored to the bottom of the reserved band rather than the top, so every
-   caption sits the same distance above the frame and the slack a short line
-   leaves opens upwards, away from the picture. */
-.beat {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 300ms ease, transform 300ms ease;
-}
-
-.beat.is-active {
-  opacity: 1;
-  transform: none;
-}
-
-/* Display size. It scales with the window because it has to survive two lines of
-   the longest caption on a laptop without eating the frame's height. */
+/* Display size. Set against the column rather than the window: the track is
+   about two fifths of the page now, so `vw` would size the type off a width it
+   does not have. */
 .beat p {
   margin: 0;
-  font: 500 clamp(24px, 2.9vw, 44px) / 1.16 var(--condensed);
+  font: 500 clamp(22px, 2.1vw, 34px) / 1.2 var(--condensed);
   letter-spacing: -0.01em;
   text-wrap: balance;
   color: var(--ink);
@@ -332,11 +300,10 @@ h1 {
    moving continuously with the scroll while the line above the
    frame changes only on a beat.
 ------------------------------------------------------------------ */
-/* The band it sits in. Fixed to its content's height so the frame above gets
-   everything else, and matched to the frame's width so the two edges line up. */
+/* The band it sits in, under the frame in the sticky column. Fixed to its
+   content's height so the frame above gets everything else. */
 .readout {
   flex: none;
-  width: min(1180px, 100%);
 }
 
 /* Laid out in a row now that it is under a wide frame rather than inside a
@@ -517,6 +484,22 @@ h1 {
    phone — each cell would be ~60px. It wraps to a grid instead, and the caption
    gives back some size so the frame keeps most of the window. */
 @media (max-width: 900px) {
+  /* Stacked: there is no room for a track beside the picture. The picture takes
+     the top of the screen and holds there; the lines run up through the space
+     under it, full width. `placeBeats()` reads this layout off the sticky
+     column's width and centres each line in what is left below, rather than in
+     the middle of the window where the picture is. */
+  .pin-sticky {
+    width: 100%;
+    height: 62svh;
+    padding-bottom: 0;
+  }
+
+  .beat-track {
+    left: clamp(16px, 4vw, 56px);
+    width: auto;
+  }
+
   .beat p {
     font-size: clamp(20px, 4.6vw, 30px);
   }

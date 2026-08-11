@@ -50,29 +50,29 @@
 
       <section class="pin-section" id="pin-section">
         <!--
-          Three bands, stacked: the line, the picture, the readout. All of it
-          lives inside the sticky stage rather than on a track down the section,
-          so the whole arrangement holds still for the pinned scroll and only its
-          contents change.
+          Two columns. The picture is held on the left for the whole pinned
+          scroll; the lines run down the right and the reader scrolls through
+          them. Only the left column is sticky — the track has to move, because
+          its movement is what reading is here.
         -->
         <div class="pin-stage">
+          <div class="pin-sticky">
+            <div class="frame">
+              <div class="stage" id="stage"></div>
+              <p class="stage-error" id="stage-error" role="status"></p>
+            </div>
+
+            <!-- main.js builds the drive readout in here, if the clip carries one. -->
+            <div class="readout" id="drive-slot"></div>
+          </div>
+
           <!--
             The beats are written by main.js, not authored here: the camera's own
             shot list supplies some and the recording's detected state changes
-            supply the rest. Scroll swaps which beat is showing by crossfading
-            them in place, so this block never moves.
+            supply the rest. Each is placed down this track at the scroll
+            position of the moment it describes.
           -->
-          <div class="pin-text" id="beat-box">
-            <div class="beat-stack" id="beats"></div>
-          </div>
-
-          <div class="frame">
-            <div class="stage" id="stage"></div>
-            <p class="stage-error" id="stage-error" role="status"></p>
-          </div>
-
-          <!-- main.js builds the drive readout in here, if the clip carries one. -->
-          <div class="readout" id="drive-slot"></div>
+          <div class="beat-track" id="beats"></div>
         </div>
       </section>
     </main>
