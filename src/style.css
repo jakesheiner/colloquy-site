@@ -403,8 +403,12 @@ h1 {
    Solid by the time it passes the readout. */
 .beat-veil-bottom {
   top: var(--veil-foot, 80vh);
-  height: calc(100svh - var(--veil-foot, 80vh));
-  margin-bottom: calc(0px - (100svh - var(--veil-foot, 80vh)));
+  /* Stops at the platform's bottom edge rather than running to the foot of the
+     window. It used to have to reach further, to cover text drawn below the
+     panel — the track is clipped to the platform now, so there is nothing down
+     there to cover, and painting over it only smudged the edge. */
+  height: calc(var(--column-foot, 100svh) - var(--veil-foot, 80vh));
+  margin-bottom: calc(0px - (var(--column-foot, 100svh) - var(--veil-foot, 80vh)));
   background: linear-gradient(
     to top,
     rgba(255, 255, 255, 0.97) 0%,

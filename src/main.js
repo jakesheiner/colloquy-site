@@ -1538,6 +1538,16 @@ for (const end of ['top', 'bottom']) {
 // one place the height of the column's reading position is set.
 const HEADLINE_TOP = 0.2;
 
+// The platform's top and bottom in the window, written by `placeBeats()` and
+// read by `clipTrackToPlatform()` — the two need the same numbers and the
+// second runs every frame, so they are kept here rather than measured twice.
+let columnBand = { top: 0, foot: 0 };
+// The clip last written, so a frame that changes nothing writes nothing.
+// Declared up here rather than beside `clipTrackToPlatform()` below: `placeBeats`
+// runs during module evaluation and recuts the clip, and a `let` further down the
+// file is still in its temporal dead zone at that point.
+let lastClip = '';
+
 /**
  * Lay the sections down the pin, each starting at the scroll position of its
  * moment and running until the next one starts.
@@ -1564,46 +1574,49 @@ function placeBeats() {
   const travel = pinSection.offsetHeight - window.innerHeight;
   if (travel <= 0) return;
 
-  // Where the column starts, and where a section comes to rest inside it.
+  // Where the platform starts and ends.
   //
-  // Beside the scene there is room for both, so the column runs the full height
-  // and sections rest a fifth of the way down. Stacked — the narrow layout, where
-  // the column is as wide as the window — an opaque column that tall would hide
-  // the piece completely, so it takes the lower part of the screen and leaves the
-  // top to the scene.
+  // Held off both ends of the window rather than run to them, so it reads as a
+  // panel laid on the scene — its top and bottom edges, and the rounded corners
+  // on them, are only visible if there is scene on the other side of them.
+  //
+  // Beside the scene it is inset a little from the top. Stacked — the narrow
+  // layout, where it is as wide as the window — it takes the lower part of the
+  // screen and leaves the top to the piece, which would otherwise be hidden
+  // behind it completely.
   const narrow = window.matchMedia('(max-width: 900px)').matches;
-  const columnTop = narrow ? window.innerHeight * 0.44 : 0;
-  const offset = columnTop + (window.innerHeight - columnTop) * HEADLINE_TOP;
+  const columnTop = narrow
+    ? window.innerHeight * 0.44
+    : Math.min(64, Math.max(24, window.innerHeight * 0.06));
 
-  // The foot of the readable column is the top of the readout, not the bottom of
-  // the window: the bars lie across the foot of the scene, and text running into
-  // them would be unreadable over the top of them.
-  // Clearance under the bars, in px.
+  // The bars lie across the foot of the scene, and text running into them would
+  // be unreadable over the top of them — so the platform stops above them, with
+  // enough clearance to read as a separate thing rather than as their lid.
   const READOUT_GAP = Math.round(Math.min(40, Math.max(18, window.innerHeight * 0.035)));
   const readoutTop = driveSlot && driveSlot.offsetHeight > 0
     ? window.innerHeight - driveSlot.offsetHeight - READOUT_GAP
     : window.innerHeight;
+  const columnFoot = readoutTop - Math.round(Math.min(28, Math.max(14, window.innerHeight * 0.02)));
+
+  // Where a section comes to rest: a share of the way down the platform, not of
+  // the window, so it sits the same way inside it at any size.
+  const offset = columnTop + (columnFoot - columnTop) * HEADLINE_TOP;
+
+  columnBand = { top: columnTop, foot: columnFoot };
 
   beatsEl.style.setProperty('--headline-top', `${offset.toFixed(1)}px`);
-  // Where the column starts being readable, and so where the fade has to reach
-  // full strength: the top of the window beside the picture, the bottom of the
-  // picture when stacked under it. The fade runs from here down to where the
-  // sections sit, so a section is solid while it is being read and gone by the
-  // time it has been pushed clear.
+  // The platform's two edges. Everything else here is measured from them.
   beatsEl.style.setProperty('--veil-top', `${columnTop.toFixed(1)}px`);
-  // Where the fade at the foot of the column starts. Given as a distance from the
-  // top of the window rather than as `bottom: 0`, because both veils sit at the
-  // top of the track in the flow and a bottom-stuck element there has nothing
-  // below it to hold against — it simply scrolls away with the track. Pinned by
-  // offset it stays at the foot for the whole pin.
-  // The fade at the foot starts one fade-depth above the readout. That depth is
-  // measured from the top of the *column*, not the top of the window — they are
-  // the same thing beside the scene, and are not once the column starts partway
-  // down the screen.
-  beatsEl.style.setProperty('--veil-foot', `${(readoutTop - (offset - columnTop)).toFixed(1)}px`);
-  // How far down the window the column's surface reaches: to the readout, and no
-  // further.
-  beatsEl.style.setProperty('--column-foot', `${readoutTop.toFixed(1)}px`);
+  beatsEl.style.setProperty('--column-foot', `${columnFoot.toFixed(1)}px`);
+  // Where the fade at the foot begins: one fade-depth above the platform's
+  // bottom edge, so a section has gone by the time it reaches it. The depth is
+  // measured from the top of the *platform*, not the top of the window — those
+  // are no longer the same thing.
+  //
+  // Given as a distance from the top of the window rather than as `bottom`,
+  // because the veils sit at the top of the track in the flow and a bottom-stuck
+  // element there has nothing below it to hold against: it just scrolls away.
+  beatsEl.style.setProperty('--veil-foot', `${(columnFoot - (offset - columnTop)).toFixed(1)}px`);
   // The readout is a sibling of the track now, so it needs telling where the foot
   // of the window is too — same reason as the veil: stuck by an offset from the
   // top, because it has nothing below it to hold a `bottom` against.
@@ -1634,7 +1647,7 @@ function placeBeats() {
   // distance is what is left below them — anything less and the section after
   // this one is already on screen underneath it, which is what made them read as
   // crowded no matter how much padding they were given.
-  const leastScroll = readoutTop - offset;
+  const leastScroll = columnFoot - offset;
 
   const tops = [];
   let cursor = -Infinity;
@@ -1657,6 +1670,12 @@ function placeBeats() {
     const until = i + 1 < beats.length ? tops[i + 1] : travel + window.innerHeight;
     beat.el.style.height = `${Math.max(until - tops[i], content).toFixed(1)}px`;
   }
+
+  // The band moved, so the clip has to be recut now rather than waiting for the
+  // next frame — otherwise a resize leaves text outside the platform until
+  // something else happens to redraw.
+  lastClip = '';
+  clipTrackToPlatform();
 }
 
 placeBeats();
@@ -1824,6 +1843,33 @@ function pinProgress() {
  */
 let lastProgress = -1;
 
+/**
+ * Clip the text to the platform.
+ *
+ * A section arrives from the foot of the window, so without this it is drawn on
+ * the scene below the platform before it reaches it — and the fade could only
+ * ever *paint over* that, which meant a pale band under the panel exactly where
+ * its bottom edge is supposed to read.
+ *
+ * The clip has to be recomputed as the page moves because the two things are in
+ * different coordinate spaces: the sections are placed down the pin, and the
+ * platform is fixed in the window. This converts the window band into track
+ * coordinates. It is one style write per frame, and only when it changes.
+ */
+function clipTrackToPlatform() {
+  const y = window.scrollY - pinSection.offsetTop;
+  const height = beatsEl.offsetHeight;
+  if (height <= 0) return;
+  const top = Math.max(0, y + columnBand.top);
+  const bottom = Math.max(0, height - (y + columnBand.foot));
+  // Rounded to match the platform's corners, so a line of text passing the edge
+  // is cut on the same curve.
+  const clip = `inset(${top.toFixed(1)}px 0px ${bottom.toFixed(1)}px 0px round 18px)`;
+  if (clip === lastClip) return;
+  lastClip = clip;
+  beatsEl.style.clipPath = clip;
+}
+
 function frame() {
   requestAnimationFrame(frame);
 
@@ -1836,6 +1882,8 @@ function frame() {
   // is sitting still, and an unpainted one renders in loader grey. The per-mesh
   // `painted` flag makes this a no-op once settled.
   paintBodies();
+
+  clipTrackToPlatform();
 
   const progress = pinProgress();
   if (progress !== lastProgress) {
