@@ -57,9 +57,12 @@
         -->
         <div class="pin-stage">
           <div class="pin-sticky">
-            <div class="frame">
-              <div class="stage" id="stage"></div>
-              <p class="stage-error" id="stage-error" role="status"></p>
+            <!-- Takes the flexible height; the frame holds 16:9 inside it. -->
+            <div class="frame-fit">
+              <div class="frame">
+                <div class="stage" id="stage"></div>
+                <p class="stage-error" id="stage-error" role="status"></p>
+              </div>
             </div>
 
             <!-- main.js builds the drive readout in here, if the clip carries one. -->

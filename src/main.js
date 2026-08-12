@@ -702,19 +702,79 @@ const lastInto = (state) => {
  * to where the swing overhead lands (see `panEndAt`).
  */
 const SCRIPT = [
-  { tick: () => playback.tickStart, kind: 'camera',
-    text: 'The mobile starts up. Nothing is looking for anything yet, and the drives begin to climb.' },
-  { tick: () => firstInto(SEARCHING), kind: 'camera',
-    text: 'The drives cross their threshold, and all five go searching.' },
-  { tick: () => lastInto(ENGAGED), kind: 'pair',
-    text: 'Two of them catch each other’s eye and engage — their drives begin to fall.' },
-  { tick: () => lastInto(SPENT), kind: 'pair',
-    text: 'Spent, they rest — briefly.' },
-  // `And they go back to searching.` is the recording's last word, but it is not
-  // listed here: it is pinned to where the swing overhead lands instead (see the
-  // beats block near the end), so the whole zoom-out belongs to the single step
-  // that leads from resting up to it.
+  {
+    tick: () => playback.tickStart,
+    headline: 'The sculpture',
+    blocks: [
+      { voice: 'model', text: 'Colloquy is a kinetic sculpture, a large mobile hanging from the ceiling, consisting of five figures.' },
+      { voice: 'model', text: 'Pask labeled three figures “female” and two “male”. His language and allusions are dated and sexist.' },
+      { voice: 'party', text: 'The sculpture can represent people interacting at a party. Their conversations have a beginning, a middle, and an end.' },
+      { voice: 'model', text: 'At any moment, each mobile is in one of three possible states: resting, searching, or conversing.' },
+    ],
+  },
+  {
+    // No moment in the recording — this one introduces the metaphor rather than
+    // describing anything the clip does, so it is placed by hand. It and
+    // `Starting up` divide the long stretch before the drives cross their
+    // threshold into even thirds with the opening section.
+    at: 0.073,
+    soft: true,
+    headline: 'The sculpture represents a party',
+    blocks: [
+      { voice: 'party', text: 'A party has people. Guests show up, to mingle, eat, drink, and socialize.' },
+      { voice: 'model', text: 'Five agents hang from the mobile. Each can move independently, communicate, and affect the others.' },
+      { voice: 'party', text: 'Guests arrive with interests, and a growing desire to share them.' },
+      { voice: 'model', text: 'Every agent has two drive states — Orange and Puce — which grow over time.' },
+    ],
+  },
+  {
+    // Also placed by hand: the clip opens with everything already at rest, so
+    // there is no event marking the start — the moment this describes is the
+    // stretch before the drives cross, not a transition into it.
+    at: 0.146,
+    soft: true,
+    headline: 'Starting up',
+    blocks: [
+      { voice: 'model', text: 'When the model starts up, all figures are resting, and their drives begin to climb.' },
+      { voice: 'party', text: 'Guests arrive, and the room starts to fill.' },
+    ],
+  },
+  {
+    tick: () => firstInto(SEARCHING),
+    headline: 'Searching',
+    blocks: [
+      { voice: 'model', text: 'Once their drives cross the threshold, all five begin searching.' },
+      { voice: 'model', text: 'The females rotate on their axis; the males spin the bar.' },
+      { voice: 'party', text: 'At first, everyone mingles — working the room, putting yourself out there.' },
+    ],
+  },
+  {
+    tick: () => lastInto(ENGAGED),
+    headline: 'As people get comfortable, individual conversations emerge',
+    blocks: [
+      { voice: 'model', text: 'A signal is received, and reciprocated.' },
+      { voice: 'party', text: 'Two guests catch each other’s eye.' },
+      { voice: 'model', text: 'The male emits a beam, the female reflects it back, and both drives drop, entering the resting phase.' },
+      { voice: 'party', text: 'A connection is made, and the conversation flows.' },
+    ],
+  },
+  {
+    tick: () => lastInto(SPENT),
+    headline: 'Returning to the party',
+    blocks: [
+      { voice: 'model', text: 'After briefly resting, the agents return to searching.' },
+      { voice: 'party', text: 'Guests drift back to the main room.' },
+    ],
+  },
+  // The closing headline has no moment of its own either — it is pinned to where
+  // the swing overhead lands, and it is added once `panEndAt` is known (see the
+  // sections block below).
 ];
+
+/** The last headline, held to the end of the pin. No body under it. */
+const CLOSING_HEADLINE =
+  'The mobiles continue this dance — rotating, sending signals, and shifting ' +
+  'between paired-off conversations and the main party';
 
 /**
  * The script's moments as pin progress, ascending and strictly increasing.
@@ -726,9 +786,17 @@ const SCRIPT = [
 const scriptAt = (() => {
   const out = [];
   for (const line of SCRIPT) {
-    const tick = line.tick();
-    if (tick === null) continue;
-    const at = clamp01(progressOfTick(tick));
+    // A section either names a moment in the recording or, where it is talking
+    // about the piece rather than reporting something the clip does, gives its
+    // own position.
+    let at;
+    if (line.at !== undefined) {
+      at = clamp01(line.at);
+    } else {
+      const tick = line.tick();
+      if (tick === null) continue;
+      at = clamp01(progressOfTick(tick));
+    }
     if (out.length > 0 && at <= out[out.length - 1].at + 1e-6) continue;
     out.push({ at, line });
   }
@@ -1317,17 +1385,83 @@ viewer.renderer.render = (scene, camera) => {
 // reader arrives at the plan view reading it while the last of the recording
 // plays out.
 const beats = [
-  ...scriptAt.map(({ at, line }) => ({ at, kind: line.kind, text: line.text })),
-  { at: panEndAt ?? 0.92, kind: 'pair', text: 'And they go back to searching.' },
+  ...scriptAt.map(({ at, line }) => ({
+    at, soft: line.soft === true, headline: line.headline, blocks: line.blocks,
+  })),
+  { at: panEndAt ?? 0.92, headline: CLOSING_HEADLINE, blocks: [] },
 ].sort((a, b) => a.at - b.at);
 
+/**
+ * The words that name something on screen, so they can be coloured to match it:
+ * the two sides of the piece, and the two drives.
+ *
+ * `females?` has to come before `males?` in the alternation or the shorter one
+ * wins the race on "females". The word boundaries do not save it on their own —
+ * there is no boundary in the middle of "female".
+ */
+const TERMS = /\b(females?|males?|orange|puce)\b/gi;
+
+/**
+ * Write a line, wrapping any of those words in a span the stylesheet can colour.
+ *
+ * Built out of text nodes and elements rather than by assigning `innerHTML`: the
+ * script stays plain prose, and nothing anyone writes in it can be read as
+ * markup.
+ */
+function writeBody(el, text) {
+  let last = 0;
+  for (const match of text.matchAll(TERMS)) {
+    if (match.index > last) el.append(text.slice(last, match.index));
+    const term = document.createElement('span');
+    term.className = 'term';
+    // Singular, so `males` and `male` colour the same.
+    term.dataset.term = match[0].toLowerCase().replace(/s$/, '');
+    term.textContent = match[0];
+    el.append(term);
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) el.append(text.slice(last));
+}
+
 for (const beat of beats) {
-  const block = document.createElement('div');
+  const block = document.createElement('section');
   block.className = 'beat';
-  block.dataset.kind = beat.kind;
-  block.innerHTML = `<p>${beat.text}</p>`;
+
+  // The whole section holds still together and is pushed out by the next one, so
+  // the sticking happens on this wrapper rather than on the headline alone —
+  // otherwise the body slides up behind its own title while the title stays.
+  const inner = document.createElement('div');
+  inner.className = 'beat-inner';
+
+  const headline = document.createElement('h2');
+  headline.className = 'beat-headline';
+  headline.textContent = beat.headline;
+  inner.append(headline);
+
+  for (const body of beat.blocks) {
+    const line = document.createElement('p');
+    line.className = 'beat-body';
+    // Two voices: what the sculpture is, and what the party it stands for is.
+    // The stylesheet is the only place that says which is which colour.
+    line.dataset.voice = body.voice;
+    writeBody(line, body.text);
+    inner.append(line);
+  }
+
+  block.append(inner);
   beatsEl.append(block);
   beat.el = block;
+  beat.inner = inner;
+}
+
+// The fades a section arrives out of and leaves into, held at the two ends of the
+// column for the whole pin. Last, so they paint over the sections moving behind
+// them.
+for (const end of ['top', 'bottom']) {
+  const veil = document.createElement('div');
+  veil.className = `beat-veil beat-veil-${end}`;
+  veil.setAttribute('aria-hidden', 'true');
+  beatsEl.append(veil);
 }
 
 // There is no `switchAt` any more. It existed because one box held one line at a
@@ -1339,54 +1473,125 @@ for (const beat of beats) {
 // --- the caption track --------------------------------------------------------
 
 /**
- * Lay the captions down the pin, each at the scroll position of its moment.
+ * Where a headline sits once it sticks, as a share of the viewport height.
  *
- * The lines used to be stacked on top of each other in a fixed box and swapped
- * by crossfade. They are a track now: one block per moment, scrolling past the
- * held frame, so the reader moves through the text the way they move through the
- * recording rather than watching it change under them.
+ * One number, used twice: the CSS sticks the headline here, and the sections are
+ * placed so that a section's top *arrives* here exactly when the scroll reaches
+ * its moment. The two have to agree or a headline would either be stuck before
+ * its moment or jump on arriving at it, so the CSS reads it from the custom
+ * property this sets rather than repeating the figure.
+ */
+// Only the narrow layout uses this now: beside the frame the sections align to
+// the frame's own top edge instead, measured off the layout.
+const HEADLINE_TOP = 0.2;
+
+/**
+ * Lay the sections down the pin, each starting at the scroll position of its
+ * moment and running until the next one starts.
+ *
+ * The lines used to be stacked in a fixed box and swapped by crossfade; then one
+ * line per moment on a track. This is the same track, but each entry is now a
+ * headline with body under it, and the headline sticks for as long as its section
+ * is passing — so what the reader is looking at stays labelled while they read
+ * about it.
+ *
+ * A section's *height* is what makes that work: `position: sticky` pins a child
+ * only within its parent's box, so the box has to span the whole stretch of
+ * scroll the headline should hold for. That stretch is the gap to the next
+ * moment, which is why this sets height as well as top.
  *
  * Positioned in pixels off the same measurement `pinProgress` reads —
  * `offsetHeight` minus `innerHeight` — rather than a `vh` calc, so the two cannot
  * disagree about what a viewport is. They would on any mobile browser whose
  * toolbars slide away, where `100vh` is the large viewport and `innerHeight` is
- * whatever is on screen this second, and every line would sit a little off its
+ * whatever is on screen this second, and every section would sit a little off its
  * moment.
- *
- * The offset inside the viewport puts a line's own middle level with the middle
- * of the frame at exactly the progress it belongs to, so the words and what they
- * describe arrive together.
  */
 function placeBeats() {
   const travel = pinSection.offsetHeight - window.innerHeight;
   if (travel <= 0) return;
 
-  // Where in the viewport a line should sit when the scroll is on its moment.
+  // Where the top of a section should land when the scroll is on its moment.
   //
-  // Beside the frame, that is the frame's own middle rather than the window's:
-  // the readout hangs under the picture, so the two are ~60px apart and a line
-  // centred on the window sits visibly low against the thing it describes.
-  // Stacked under the picture — the narrow layout — it is the middle of what is
-  // left below, or the words would land behind it.
+  // Beside the frame, that is the frame's own top edge: a headline and the
+  // picture it describes start on the same line. Measured rather than set,
+  // because the frame holds a fixed aspect and is centred in whatever height the
+  // column has left, so where its top falls depends on the window — a share of
+  // the viewport happened to be close on one size and drifted on every other.
   //
-  // Both are measured against the sticky column, which is at the top of the
-  // viewport for the whole pinned scroll, so its own coordinates are the
-  // viewport's.
+  // `offsetTop` is against `.pin-sticky`, which is the frame's offset parent and
+  // is itself pinned to the top of the window for the whole pinned scroll. So its
+  // coordinates and the viewport's are the same thing here.
+  //
+  // Stacked under the picture — the narrow layout — there is no aligning to do:
+  // the words have to clear the picture entirely or they land behind it.
   const sticky = document.querySelector('.pin-sticky');
   const frame = document.querySelector('.frame');
   const stacked = sticky ? sticky.offsetWidth > pinSection.clientWidth * 0.9 : false;
-  let centre;
-  if (stacked && sticky) {
-    centre = sticky.offsetHeight + (window.innerHeight - sticky.offsetHeight) / 2;
-  } else if (frame) {
-    centre = frame.offsetTop + frame.offsetHeight / 2;
-  } else {
-    centre = window.innerHeight / 2;
+  const from = stacked && sticky ? sticky.offsetHeight : 0;
+  const offset = !stacked && frame
+    ? frame.offsetTop
+    : from + (window.innerHeight - from) * HEADLINE_TOP;
+
+  beatsEl.style.setProperty('--headline-top', `${offset.toFixed(1)}px`);
+  // Where the column starts being readable, and so where the fade has to reach
+  // full strength: the top of the window beside the picture, the bottom of the
+  // picture when stacked under it. The fade runs from here down to where the
+  // sections sit, so a section is solid while it is being read and gone by the
+  // time it has been pushed clear.
+  beatsEl.style.setProperty('--veil-top', `${from.toFixed(1)}px`);
+  // Where the fade at the foot of the column starts. Given as a distance from the
+  // top of the window rather than as `bottom: 0`, because both veils sit at the
+  // top of the track in the flow and a bottom-stuck element there has nothing
+  // below it to hold against — it simply scrolls away with the track. Pinned by
+  // offset it stays at the foot for the whole pin.
+  beatsEl.style.setProperty('--veil-foot', `${(window.innerHeight - (offset - from)).toFixed(1)}px`);
+
+  // Heights are cleared before anything is measured. `scrollHeight` on a box with
+  // an explicit height reports *that* height, not the content's, so measuring
+  // without this compares each section against the height it was given last time
+  // and the answer can only ever grow — one resize narrower and the sections keep
+  // the taller boxes they had.
+  for (const beat of beats) beat.el.style.height = 'auto';
+
+  // Tops first, then heights, because a section's height is the distance to the
+  // next section's top and some of those tops move.
+  //
+  // A section anchored to a moment in the recording sits exactly at it — that is
+  // the whole point of it. A `soft` one, placed by hand because it describes the
+  // piece rather than reporting an event, only has a *preferred* position: if the
+  // section before it is too tall for the gap, it gives way and follows on
+  // instead. Without that the exposition at the top, which is three sections
+  // inside the stretch before the drives cross, overlapped itself — each one
+  // arriving on top of the last rather than after it.
+  // How much scroll a section owns at the very least: enough that the next one
+  // has not reached the foot of the window while this one is sitting in place.
+  // Sections are placed from the top of the window down to `offset`, so that
+  // distance is what is left below them — anything less and the section after
+  // this one is already on screen underneath it, which is what made them read as
+  // crowded no matter how much padding they were given.
+  const leastScroll = window.innerHeight - offset;
+
+  const tops = [];
+  let cursor = -Infinity;
+  for (const beat of beats) {
+    const wanted = beat.at * travel + offset;
+    const top = beat.soft ? Math.max(wanted, cursor) : wanted;
+    tops.push(top);
+    cursor = top + Math.max(beat.el.scrollHeight, leastScroll);
   }
 
-  for (const beat of beats) {
-    const offset = centre - beat.el.offsetHeight / 2;
-    beat.el.style.top = `${(beat.at * travel + offset).toFixed(1)}px`;
+  for (let i = 0; i < beats.length; i++) {
+    const beat = beats[i];
+    const content = beat.el.scrollHeight;
+    beat.el.style.top = `${tops[i].toFixed(1)}px`;
+
+    // Run to the next section, or to the end of the pin for the last one. Never
+    // shorter than the text itself, or a long section inside a short gap would
+    // have its own body spill out of the box it sticks in — it would stop
+    // sticking while its words were still on screen.
+    const until = i + 1 < beats.length ? tops[i + 1] : travel + window.innerHeight;
+    beat.el.style.height = `${Math.max(until - tops[i], content).toFixed(1)}px`;
   }
 }
 
@@ -1442,14 +1647,9 @@ if (driveTrack) {
   const panel = document.createElement('div');
   panel.className = 'drives';
 
-  // Which bar is which. Two unlabelled bars would be decoration.
-  const legend = document.createElement('p');
-  legend.className = 'drives-legend';
-  legend.innerHTML =
-    '<span class="drives-key"><i data-drive="o"></i>drive O</span>' +
-    '<span class="drives-key"><i data-drive="p"></i>drive P</span>' +
-    '<span class="drives-note">hunger — spent below the mark</span>';
-  panel.append(legend);
+  // No legend. The bars used to carry one — two swatches and a note — but the
+  // prose now names Orange and Puce in their own colours, which says the same
+  // thing where the reader is already looking.
 
   for (const unit of driveTrack.units) {
     const row = document.createElement('div');

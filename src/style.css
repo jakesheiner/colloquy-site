@@ -15,6 +15,16 @@
   --drive-o: #f5c342;
   --drive-p: #57b036;
 
+  /* The same four things, darkened for setting as words. The colours above are
+     for shapes and bars, where a light amber on white is a filled area and reads
+     fine; as 18px text it is about 1.8:1 against the page and barely legible.
+     These keep the hue so a word still points at its object, at a weight you can
+     actually read. */
+  --magenta-ink: #c0157f;
+  --blue-ink: #1a7cb0;
+  --drive-o-ink: #a9780a;
+  --drive-p-ink: #417a26;
+
   /* 'Univers Condensed' first for anyone with the licensed Linotype
      family installed; Barlow Condensed (loaded via Google Fonts) is
      the freely-licensed stand-in everyone else gets. */
@@ -162,8 +172,16 @@ h1 {
 .pin-section {
   position: relative;
   /* The scroll distance the whole camera move plays out over. Longer means a
-     slower pan for the same shot list. */
-  height: 780vh;
+     slower pan for the same shot list.
+
+     Raised twice, both times to buy the text room rather than to change the
+     pacing for its own sake. Each section now owns at least a windowful of
+     scroll so the next one is not already on screen under it, and the three
+     exposition sections have to fit between the top of the pin and the moment
+     the drives cross — a stretch that is only 22% of this number. The scene is
+     slower per pixel as a result, which is the intended trade: the same
+     recording spread over more scrolling. */
+  height: 1200vh;
 }
 
 /* Two columns: the picture on the left, the lines running down the right.
@@ -207,12 +225,35 @@ h1 {
    `min-height: 0` is what lets it actually shrink: a flex item defaults to its
    content's minimum, and without this the frame refuses to give height back on a
    short window and pushes the readout off the bottom. */
-.frame {
-  position: relative;
+/* Takes the flexible height in the column and centres the frame in it.
+
+   `min-height: 0` is what lets it actually shrink: a flex item defaults to its
+   content's minimum, and without this it refuses to give height back on a short
+   window and pushes the readout off the bottom. */
+.frame-fit {
   flex: 1;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Makes this box's width and height addressable as `cqw`/`cqh` below. */
+  container-type: size;
+}
+
+.frame {
+  position: relative;
+  /* 16:9, sized as the smaller of "as wide as the column" and "as wide as the
+     height allows at this ratio", so whichever runs out first constrains it and
+     the other follows. `aspect-ratio` cannot do this alone: with only `max-*` and
+     no basis the box collapses to nothing, and fixing either dimension makes the
+     other overflow instead of shrinking. A wide, short window is the case that
+     needs it — there the height is what binds. */
+  width: min(100cqw, calc(100cqh * 16 / 9));
+  aspect-ratio: 16 / 9;
   border: 1px solid var(--line);
+  border-radius: 14px;
   background: var(--bg);
+  /* Also what clips the canvas to the rounded corners. */
   overflow: hidden;
 }
 
@@ -267,32 +308,164 @@ h1 {
   bottom: 0;
   right: clamp(16px, 4vw, 56px);
   width: 34%;
+  /* A stacking context of its own, below the sticky column's. The headlines
+     raise themselves above their own bodies, and without this that `z-index`
+     competes with the picture column's instead — on the narrow layout, where the
+     track runs under the picture, the headlines rode over it. */
+  z-index: 0;
 }
 
+/* One section per moment. Its height is set by `placeBeats()` to the stretch of
+   scroll it owns, because that box is what its headline sticks inside. */
+/* One section per moment. Its height is set by `placeBeats()` to the stretch of
+   scroll it owns, which is what the block inside it sticks within.
+
+   No `overflow` here on purpose. Clipping the section would cut its text off at
+   a hard line as it was pushed out; the fade at the top of the column does that
+   job instead, softly. Sections are in scroll order, so the one arriving paints
+   over the one leaving. */
 .beat {
   position: absolute;
   left: 0;
   right: 0;
-  /* Nothing here should swallow a drag or a text selection meant for the page. */
-  pointer-events: none;
 }
 
-/* Display size. Set against the column rather than the window: the track is
-   about two fifths of the page now, so `vw` would size the type off a width it
-   does not have. */
-.beat p {
-  margin: 0;
-  font: 500 clamp(22px, 2.1vw, 34px) / 1.2 var(--condensed);
+/* The section holds still as a whole and is pushed out by the next one.
+
+   The sticking is here, on the block, rather than on the headline: a sticky
+   headline alone leaves its own body to slide up behind it, so the words and the
+   title they belong to come apart. Stuck as one, the section is simply legible
+   for as long as it is the current one, and then the next section's box reaches
+   it and pushes it up and out.
+
+   `--headline-top` is written by `placeBeats()` from the same number it uses to
+   place the sections, so a section arrives exactly where it will stick rather
+   than jumping into place on the way past.
+
+   Opaque, because the section behind it is still on its way out underneath. */
+.beat-inner {
+  position: sticky;
+  top: var(--headline-top, 20vh);
+  background: var(--bg);
+  /* Clear air under the last line, so the next section arrives into a gap rather
+     than straight onto it. Sticky pushes a block out when its parent's bottom
+     edge reaches the block's own bottom, so padding here is also lead time: the
+     section starts leaving that much earlier, and what follows it up the column
+     is white rather than the next headline. */
+  padding-bottom: clamp(96px, 16vh, 190px);
+}
+
+.beat-headline {
+  /* Tight to its own body on purpose. The gap under a section is many times this
+     one, so a headline reads as belonging to the paragraphs beneath it rather
+     than floating between two groups. */
+  margin: 0 0 14px;
+  font: 600 clamp(24px, 2.3vw, 38px) / 1.15 var(--condensed);
   letter-spacing: -0.01em;
   text-wrap: balance;
   color: var(--ink);
 }
 
-/* What the camera is doing, as against what the piece is doing. Quieter, but at
-   this size the weight carries the difference better than the colour alone. */
-.beat[data-kind='camera'] p {
+/* The fade an outgoing section disappears into, rather than a hard edge.
+
+   Sticky at the top of the column for the whole pin, painted over the sections
+   because it is last in the track. It runs from solid at the top of the readable
+   column to clear by the time it reaches where sections sit, so a section is
+   fully opaque while it is being read and has faded out entirely by the time the
+   next one has pushed it clear. `margin-bottom` takes its height back out of the
+   flow so it displaces nothing. */
+.beat-veil {
+  position: sticky;
+  /* Both ends are the same depth, so a section fades in over the same distance it
+     will later fade out over. The top's depth is not free — it has to reach clear
+     by the point sections sit, or a section would still be dimmed while it was
+     being read — so that measure sets both. */
+  height: calc(var(--headline-top, 20vh) - var(--veil-top, 0px));
+  /* Takes its height back out of the flow: these displace nothing, they only
+     paint. */
+  margin-bottom: calc(0px - (var(--headline-top, 20vh) - var(--veil-top, 0px)));
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* What an outgoing section disappears into, at the top of the readable column. */
+.beat-veil-top {
+  top: var(--veil-top, 0px);
+  background: linear-gradient(
+    to bottom,
+    var(--bg) 0%,
+    var(--bg) 38%,
+    rgba(255, 255, 255, 0.92) 62%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* And what an incoming one arrives out of, at the foot of the window — the same
+   gradient turned over, so text surfaces rather than appearing all at once on a
+   line. */
+.beat-veil-bottom {
+  top: var(--veil-foot, 80vh);
+  background: linear-gradient(
+    to top,
+    var(--bg) 0%,
+    var(--bg) 38%,
+    rgba(255, 255, 255, 0.92) 62%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Display size. Set against the column rather than the window: the track is
+   about two fifths of the page now, so `vw` would size the type off a width it
+   does not have. */
+.beat-body {
+  margin: 0 0 16px;
+  /* Breaks by what the line says rather than only by where it runs out: the
+     browser evens the rag and keeps a single word off the last line. */
+  text-wrap: pretty;
+  font: 400 clamp(17px, 1.35vw, 22px) / 1.45 var(--condensed);
+  max-width: 34ch;
+}
+
+.beat-body:last-child {
+  margin-bottom: 0;
+}
+
+/* The two voices. Black is the sculpture — what is actually hanging there and
+   what it is doing. Grey is the party it stands for: the same events told as
+   people in a room. Colour is the whole distinction, so it is the one thing
+   here that is not decoration. */
+.beat-body[data-voice='model'] {
+  color: var(--ink);
+}
+
+.beat-body[data-voice='party'] {
   color: var(--mute);
-  font-weight: 400;
+  /* Set apart as a second voice, not a second colour: the metaphor is an aside
+     from the description, so it is indented and italic as well as quieter. */
+  font-style: italic;
+  padding-left: 24px;
+}
+
+/* A word that names something on screen, in that thing's own colour — the two
+   sides of the piece and the two drives. Wrapped by `writeBody()` in main.js.
+
+   The descendant selector is doing work: `.beat-body[data-voice='party']` sets a
+   colour too, and without the extra class here the voice would win and the terms
+   would go grey inside the party lines. */
+.beat-body .term[data-term='female'] {
+  color: var(--magenta-ink);
+}
+
+.beat-body .term[data-term='male'] {
+  color: var(--blue-ink);
+}
+
+.beat-body .term[data-term='orange'] {
+  color: var(--drive-o-ink);
+}
+
+.beat-body .term[data-term='puce'] {
+  color: var(--drive-p-ink);
 }
 
 /* ---------------------------------------------------------------
@@ -314,47 +487,6 @@ h1 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0 clamp(12px, 2vw, 28px);
   align-items: start;
-}
-
-.drives-legend {
-  /* Spans the row of units and sits above them. */
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Wraps, because the note does not fit beside the swatches at this width. */
-  flex-wrap: wrap;
-  gap: 14px;
-  row-gap: 8px;
-  margin: 0 0 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-  font: 500 11px/1 var(--condensed);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mute);
-}
-
-.drives-key {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.drives-key i {
-  width: 14px;
-  height: 4px;
-  border-radius: 2px;
-}
-
-/* Always its own line, rather than whatever is left beside the swatches — and
-   centred with them now that the legend is a centred band under the frame. */
-.drives-note {
-  flex-basis: 100%;
-  text-align: center;
-  text-transform: none;
-  letter-spacing: 0.02em;
-  opacity: 0.75;
 }
 
 /* One body per cell, five across under the frame. Each is a label line — who it
@@ -450,15 +582,21 @@ h1 {
   transform-origin: left center;
 }
 
-.drive-bar[data-drive='o'] i,
-.drives-key i[data-drive='o'] {
+/* Which bar is which drive. These used to share a rule with the legend's
+   swatches, and taking the legend out took the bars' colour with it — the fills
+   still scaled, they were just transparent. Standalone now, so the readout does
+   not depend on anything the legend owned. */
+.drive-bar[data-drive='o'] i {
   background: var(--drive-o);
 }
 
-.drive-bar[data-drive='p'] i,
-.drives-key i[data-drive='p'] {
+.drive-bar[data-drive='p'] i {
   background: var(--drive-p);
 }
+
+.drive-bar[data-drive='o'] i,
+
+.drive-bar[data-drive='p'] i,
 
 /* Right-aligned to the cell's edge, and no fixed width — it shares the label
    line with the name now, so it takes whatever is left rather than reserving a
@@ -500,8 +638,13 @@ h1 {
     width: auto;
   }
 
-  .beat p {
-    font-size: clamp(20px, 4.6vw, 30px);
+  .beat-headline {
+    font-size: clamp(21px, 4.6vw, 30px);
+  }
+
+  .beat-body {
+    font-size: 17px;
+    max-width: none;
   }
 
   .drives {
@@ -509,15 +652,10 @@ h1 {
     gap: 12px 18px;
   }
 
-  /* The note is the first thing to go: at this width it wraps to three lines and
-     costs the picture more than it explains. */
-  .drives-note {
-    display: none;
-  }
+  
 
-  .drives-legend {
-    margin-bottom: 4px;
-  }
+  
+
 }
 
 /* Shorter than it is narrow — a laptop in a small window. The picture is the
@@ -528,18 +666,14 @@ h1 {
     padding: 14px clamp(16px, 5vw, 64px);
   }
 
-  .beat p {
+  .beat-headline {
     font-size: clamp(19px, 2.2vw, 26px);
   }
 
-  .drives-legend {
-    padding-top: 10px;
-    margin-bottom: 8px;
-  }
+  
 
-  .drives-note {
-    display: none;
-  }
+  
+
 }
 
 @media (max-width: 720px) {
