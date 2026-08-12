@@ -194,6 +194,12 @@ h1 {
   width: 100%;
   overflow: hidden;
   background: var(--bg);
+  /* Paints, does not displace. Everything laid over the scene — the text
+     platform, the readout — is a sticky sibling *after* this one, and a sticky
+     box only sticks once its own place in the flow has been scrolled past. Left
+     in the flow, the stage puts them a whole viewport down the section and the
+     text would not appear until the reader had scrolled past that. */
+  margin-bottom: -100svh;
 }
 
 /* The player creates its canvas inside this element and sizes it to fit.
@@ -262,17 +268,70 @@ h1 {
    on a narrow window, where it stacked under the picture, that offset was
    hundreds of pixels and every line sat that far from its moment. Out of flow,
    its origin is the section's origin in both layouts and the arithmetic holds. */
-.beat-track {
-  /* Spans the whole pinned section — that is the coordinate space `placeBeats()`
-     positions each section in — and floats over the right of the scene. A
-     sibling of the sticky stage rather than a child of it, because anything
-     inside that box is pinned along with the scene and this has to move. */
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: clamp(16px, 4vw, 56px);
+/* The platform: the panel the text sits on, and the box the text is inside.
+
+   Held still over the right of the scene for the whole pin, and inset from the
+   top and the bottom of the window so its edges — and the rounded corners on
+   them — have scene on the other side of them to read against.
+
+   It is a **scroll container**, and `main.js` drives its `scrollTop` from page
+   scroll. That indirection is the point:
+
+   - `overflow: hidden` means no text can be outside the panel, ever. There is
+     nothing to fade, cover or clip at the edges — the box simply ends.
+   - The panel is a plain sticky element, so the compositor holds it still. The
+     previous version painted a strip and cut the text to it with a `clip-path`
+     rewritten every frame; the page renders WebGL every frame too, so any
+     missed frame left the cut behind the scroll and the panel's edges visibly
+     slid. Now only the *contents* can lag, by exactly as much as the scene does.
+   - Nothing on the way down to the scrim is a backdrop root any more, which is
+     what `backdrop-filter` needs. `clip-path` on an ancestor is one, and it
+     silently reduced the blur to nothing: the filter samples only inside the
+     root it finds, and inside the track there is nothing behind the panel.
+
+   Near-opaque on purpose. The scene behind it is white where the piece is not,
+   so a light scrim reads as a surface rather than a patch of the ground — but at
+   the close-up there are bodies right behind the words, and anything much more
+   transparent than this stops being readable. */
+.beat-column {
+  position: sticky;
+  top: var(--column-top, 20vh);
+  height: var(--column-band, 60svh);
+  /* Paints, does not displace: the readout is the sibling after this one and
+     has to stay measured from the top of the section. Zero margin-box height
+     also lets the panel hold to the very end of the pin rather than being
+     pushed off it early. */
+  margin-bottom: calc(0px - var(--column-band, 60svh));
+  margin-left: auto;
+  margin-right: clamp(16px, 4vw, 56px);
   width: min(30%, 400px);
+  overflow: hidden;
+  /* The browser must not take a hand in this: `scrollTop` here is a function of
+     page scroll and nothing else. */
+  overflow-anchor: none;
+  overscroll-behavior: none;
+  background: rgba(255, 255, 255, 0.66);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  border-radius: 18px;
+  /* The edge is an inset ring rather than a border, so that the box the panel
+     occupies and the box it scrolls are the same height. A border makes them
+     differ by its width, and everything inside is positioned against the
+     scrollport — the fade at the foot would sit that far off the edge it is
+     supposed to land on. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 18px 50px rgba(19, 19, 22, 0.1);
   z-index: 2;
+  pointer-events: none;
+}
+
+.beat-track {
+  /* As tall as the pinned section, because that is the coordinate space
+     `placeBeats()` positions each moment in — the platform above is a window
+     onto it, scrolled to match the page. Height is set in `placeBeats()` from
+     the section's measured height rather than in `vh` here, so it cannot
+     disagree with the arithmetic that places the sections. */
+  position: relative;
+  width: 100%;
 }
 
 /* One section per moment. Its height is set by `placeBeats()` to the stretch of
@@ -284,33 +343,6 @@ h1 {
    a hard line as it was pushed out; the fade at the top of the column does that
    job instead, softly. Sections are in scroll order, so the one arriving paints
    over the one leaving. */
-/* The column's surface: a single panel held for the whole pin, with the sections
-   scrolling over it. One panel rather than a card per section, or every push
-   would slide one translucent sheet across another.
-
-   Near-opaque on purpose. The scene behind it is white where the piece is not,
-   so a light scrim reads as a surface rather than a patch of the ground — but at
-   the close-up there are bodies right behind the words, and anything much more
-   transparent than this stops being readable. */
-.beat-scrim {
-  position: sticky;
-  top: var(--veil-top, 0px);
-  height: calc(var(--column-foot, 100svh) - var(--veil-top, 0px));
-  /* Out of the flow: it paints, it does not displace. */
-  margin-bottom: calc(0px - (var(--column-foot, 100svh) - var(--veil-top, 0px)));
-  /* A surface, not a strip: translucent, with the scene blurred behind it and an
-     edge and a lift so it reads as something laid over the picture rather than a
-     patch of the page. The sections on it are transparent — they sit next to each
-     other rather than overlapping, so none of them needs to hide another. */
-  background: rgba(255, 255, 255, 0.66);
-  backdrop-filter: blur(16px) saturate(1.08);
-  -webkit-backdrop-filter: blur(16px) saturate(1.08);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 18px;
-  box-shadow: 0 18px 50px rgba(19, 19, 22, 0.1);
-  pointer-events: none;
-}
-
 .beat {
   position: absolute;
   left: 0;
@@ -327,12 +359,13 @@ h1 {
 
    `--headline-top` is written by `placeBeats()` from the same number it uses to
    place the sections, so a section arrives exactly where it will stick rather
-   than jumping into place on the way past.
-
-   Opaque, because the section behind it is still on its way out underneath. */
+   than jumping into place on the way past. It is measured from the top of the
+   *platform*, not of the window — the platform is the scrollport now, so that is
+   what sticky is relative to — and it is the same figure as the padding on the
+   two sides, which is what sets the panel's top edge just above the heading. */
 .beat-inner {
   position: sticky;
-  top: var(--headline-top, 20vh);
+  top: var(--headline-top, 34px);
   /* Transparent: the platform underneath is the surface. Sections never overlap
      — each owns at least a windowful of scroll, so the one leaving has cleared
      the one arriving — and the fades at the two ends do the hiding. */
@@ -368,13 +401,16 @@ h1 {
 .beat-veil {
   position: sticky;
   /* Both ends are the same depth, so a section fades in over the same distance it
-     will later fade out over. The top's depth is not free — it has to reach clear
-     by the point sections sit, or a section would still be dimmed while it was
-     being read — so that measure sets both. */
-  height: calc(var(--headline-top, 20vh) - var(--veil-top, 0px));
+     will later fade out over. The depth is not free at the top — it has to reach
+     clear by the point sections come to rest, or a section would still be dimmed
+     while it was being read — and that distance is now the panel's own padding,
+     so it sets both. It is a softening of the panel's edge rather than the thing
+     doing the hiding: `overflow: hidden` on the platform is what actually ends
+     the text, and this keeps it from ending on a hard line. */
+  height: var(--headline-top, 34px);
   /* Takes its height back out of the flow: these displace nothing, they only
      paint. */
-  margin-bottom: calc(0px - (var(--headline-top, 20vh) - var(--veil-top, 0px)));
+  margin-bottom: calc(0px - var(--headline-top, 34px));
   pointer-events: none;
   /* Above the sections, and comfortably so — at 2 the text was still painting
      over the fade. This is compared only against the track's own children; the
@@ -384,7 +420,7 @@ h1 {
 
 /* What an outgoing section disappears into, at the top of the readable column. */
 .beat-veil-top {
-  top: var(--veil-top, 0px);
+  top: 0;
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.97) 0%,
@@ -397,18 +433,17 @@ h1 {
 /* And what an incoming one arrives out of, at the foot of the window — the same
    gradient turned over, so text surfaces rather than appearing all at once on a
    line. */
-/* Runs from the foot of the column to the bottom of the window, not just the
-   depth of the fade: a section arriving from below is drawn across that whole
-   band, and anything the veil does not reach shows up unfaded under the column. 
-   Solid by the time it passes the readout. */
+/* Sat on the panel's bottom edge, the same depth as the one at the top. It has
+   no covering to do — there is no text below the panel to hide, because there is
+   no below: the platform ends there.
+
+   Placed by an offset from the top, not by `bottom`. Sticky by `bottom` does
+   nothing here: it holds an element back that would otherwise leave past the
+   foot, and this one sits at the head of the track, nowhere near it. The panel
+   carries no border, so its own height is also its scrollport's and this lands
+   on the edge exactly. */
 .beat-veil-bottom {
-  top: var(--veil-foot, 80vh);
-  /* Stops at the platform's bottom edge rather than running to the foot of the
-     window. It used to have to reach further, to cover text drawn below the
-     panel — the track is clipped to the platform now, so there is nothing down
-     there to cover, and painting over it only smudged the edge. */
-  height: calc(var(--column-foot, 100svh) - var(--veil-foot, 80vh));
-  margin-bottom: calc(0px - (var(--column-foot, 100svh) - var(--veil-foot, 80vh)));
+  top: calc(var(--column-band, 60svh) - var(--headline-top, 34px));
   background: linear-gradient(
     to top,
     rgba(255, 255, 255, 0.97) 0%,
@@ -627,8 +662,8 @@ h1 {
      same as before — `safeArea()` reads the track out of the layout, so a track
      that now spans the window reserves the whole lower band rather than a
      right-hand strip. */
-  .beat-track {
-    left: clamp(16px, 4vw, 56px);
+  .beat-column {
+    margin-left: clamp(16px, 4vw, 56px);
     width: auto;
   }
 

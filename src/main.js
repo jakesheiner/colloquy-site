@@ -247,6 +247,9 @@ const GLOW = {
 
 const stage = document.getElementById('stage');
 const errorEl = document.getElementById('stage-error');
+// The platform the text sits on: held still over the scene, and the scroll
+// container the track below is inside. Page scroll drives its `scrollTop`.
+const beatColumn = document.getElementById('beat-column');
 // The track the captions are laid down; it scrolls past the held frame.
 const beatsEl = document.getElementById('beats');
 // The band under the frame, in the sticky column, so the readout stays with the
@@ -1113,11 +1116,11 @@ function safeArea() {
   // of it. Read out of the live layout rather than hard-coded, so moving the
   // column in the stylesheet moves the piece with it.
   //
-  // `offsetLeft` rather than a rect: the track spans the whole section and the
-  // section is as wide as the window, so its offset is its position on screen —
+  // `offsetLeft` rather than a rect: the panel is offset from the pinned
+  // section, which is as wide as the window, so that is its position on screen —
   // and unlike a rect, it does not depend on where the page happens to be
-  // scrolled when the shots are baked.
-  const track = document.querySelector('.beat-track');
+  // scrolled when the shots are baked, or on how far the panel has stuck.
+  const track = document.querySelector('.beat-column');
   if (track && track.offsetWidth > 0) {
     const edge = (track.offsetLeft / width - SAFE_GUTTER) * 2 - 1;
     area.x1 = Math.max(Math.min(area.x1, edge), -0.2);
@@ -1464,17 +1467,6 @@ function writeBody(el, text) {
   if (last < text.length) el.append(text.slice(last));
 }
 
-// The surface the column floats on. First, so it sits under the text.
-//
-// The scene is full bleed here, and `safeArea()` only keeps the shot's *subject*
-// clear of this column — the bodies it is not framing still swing through it, so
-// on the close-up there is magenta and blue right behind the words. This is what
-// makes them readable anyway.
-const beatScrim = document.createElement('div');
-beatScrim.className = 'beat-scrim';
-beatScrim.setAttribute('aria-hidden', 'true');
-beatsEl.append(beatScrim);
-
 for (const beat of beats) {
   const block = document.createElement('section');
   block.className = 'beat';
@@ -1538,15 +1530,15 @@ for (const end of ['top', 'bottom']) {
 // one place the height of the column's reading position is set.
 const HEADLINE_TOP = 0.2;
 
-// The platform's top and bottom in the window, written by `placeBeats()` and
-// read by `clipTrackToPlatform()` — the two need the same numbers and the
-// second runs every frame, so they are kept here rather than measured twice.
-let columnBand = { top: 0, foot: 0 };
-// The clip last written, so a frame that changes nothing writes nothing.
-// Declared up here rather than beside `clipTrackToPlatform()` below: `placeBeats`
-// runs during module evaluation and recuts the clip, and a `let` further down the
+// Where the platform's top edge sits in the window, written by `placeBeats()`
+// and read by `scrollTrackToPage()` — the second runs every frame, so it is kept
+// here rather than measured again.
+let columnTopPx = 0;
+// The scroll offset last written, so a frame that changes nothing writes nothing.
+// Declared up here rather than beside `scrollTrackToPage()` below: `placeBeats`
+// runs during module evaluation and sets the offset, and a `let` further down the
 // file is still in its temporal dead zone at that point.
-let lastClip = '';
+let lastTrackScroll = -1;
 
 /**
  * Lay the sections down the pin, each starting at the scroll position of its
@@ -1574,20 +1566,29 @@ function placeBeats() {
   const travel = pinSection.offsetHeight - window.innerHeight;
   if (travel <= 0) return;
 
-  // Where the platform starts and ends.
+  // The panel's inset from its own edges, taken from the stylesheet rather than
+  // repeated here. It sets three things at once, and they have to agree: the
+  // padding down the two sides, the gap above the heading — the panel's top edge
+  // sits exactly that far above where a heading comes to rest, so the air around
+  // the words is the same on three sides — and the depth of the fades.
+  const pad = beats.length
+    ? parseFloat(getComputedStyle(beats[0].inner).paddingLeft) || 0
+    : 0;
+
+  // Where a section comes to rest in the window. The scene is full bleed, so
+  // there is nothing in the layout to align to and this is the one place the
+  // height of the reading position is set.
   //
-  // Held off both ends of the window rather than run to them, so it reads as a
-  // panel laid on the scene — its top and bottom edges, and the rounded corners
-  // on them, are only visible if there is scene on the other side of them.
-  //
-  // Beside the scene it is inset a little from the top. Stacked — the narrow
-  // layout, where it is as wide as the window — it takes the lower part of the
-  // screen and leaves the top to the piece, which would otherwise be hidden
-  // behind it completely.
+  // Stacked — the narrow layout, where the panel is as wide as the window — it
+  // takes the lower part of the screen instead and leaves the top to the piece,
+  // which would otherwise be hidden behind it completely.
   const narrow = window.matchMedia('(max-width: 900px)').matches;
-  const columnTop = narrow
-    ? window.innerHeight * 0.44
-    : Math.min(64, Math.max(24, window.innerHeight * 0.06));
+  const restTop = narrow
+    ? window.innerHeight * 0.44 + pad
+    : window.innerHeight * HEADLINE_TOP;
+
+  // The panel's top edge: just above the heading, by its own padding.
+  const columnTop = restTop - pad;
 
   // The bars lie across the foot of the scene, and text running into them would
   // be unreadable over the top of them — so the platform stops above them, with
@@ -1598,28 +1599,23 @@ function placeBeats() {
     : window.innerHeight;
   const columnFoot = readoutTop - Math.round(Math.min(28, Math.max(14, window.innerHeight * 0.02)));
 
-  // Where a section comes to rest: a share of the way down the platform, not of
-  // the window, so it sits the same way inside it at any size.
-  const offset = columnTop + (columnFoot - columnTop) * HEADLINE_TOP;
+  const offset = restTop;
+  columnTopPx = columnTop;
 
-  columnBand = { top: columnTop, foot: columnFoot };
-
-  beatsEl.style.setProperty('--headline-top', `${offset.toFixed(1)}px`);
-  // The platform's two edges. Everything else here is measured from them.
-  beatsEl.style.setProperty('--veil-top', `${columnTop.toFixed(1)}px`);
-  beatsEl.style.setProperty('--column-foot', `${columnFoot.toFixed(1)}px`);
-  // Where the fade at the foot begins: one fade-depth above the platform's
-  // bottom edge, so a section has gone by the time it reaches it. The depth is
-  // measured from the top of the *platform*, not the top of the window — those
-  // are no longer the same thing.
-  //
-  // Given as a distance from the top of the window rather than as `bottom`,
-  // because the veils sit at the top of the track in the flow and a bottom-stuck
-  // element there has nothing below it to hold against: it just scrolls away.
-  beatsEl.style.setProperty('--veil-foot', `${(columnFoot - (offset - columnTop)).toFixed(1)}px`);
-  // The readout is a sibling of the track now, so it needs telling where the foot
-  // of the window is too — same reason as the veil: stuck by an offset from the
-  // top, because it has nothing below it to hold a `bottom` against.
+  // The panel: where it sits in the window, and how deep it is. Everything
+  // inside it is measured from its own top edge, not the window's, because the
+  // panel is the scrollport now.
+  beatColumn.style.setProperty('--column-top', `${columnTop.toFixed(1)}px`);
+  beatColumn.style.setProperty('--column-band', `${(columnFoot - columnTop).toFixed(1)}px`);
+  beatColumn.style.setProperty('--headline-top', `${pad.toFixed(1)}px`);
+  // The track is as tall as the section it maps, so the panel has that much to
+  // scroll through. Measured, not a `vh` calc, for the same reason the sections
+  // below are: it cannot be allowed to disagree with the arithmetic.
+  beatsEl.style.height = `${pinSection.offsetHeight.toFixed(1)}px`;
+  // The readout is a sibling of the panel, so it needs telling where the foot of
+  // the window is: it is stuck by an offset from the top, because it sits at the
+  // top of the section in the flow and a bottom-stuck element there has nothing
+  // below it to hold against — it just scrolls away.
   if (driveSlot) {
     driveSlot.style.setProperty('--readout-top', `${readoutTop.toFixed(1)}px`);
   }
@@ -1671,11 +1667,11 @@ function placeBeats() {
     beat.el.style.height = `${Math.max(until - tops[i], content).toFixed(1)}px`;
   }
 
-  // The band moved, so the clip has to be recut now rather than waiting for the
-  // next frame — otherwise a resize leaves text outside the platform until
-  // something else happens to redraw.
-  lastClip = '';
-  clipTrackToPlatform();
+  // The panel moved, so the track has to be re-offset now rather than waiting
+  // for the next frame — otherwise a resize leaves the text at the old position
+  // until something else happens to redraw.
+  lastTrackScroll = -1;
+  scrollTrackToPage();
 }
 
 placeBeats();
@@ -1690,8 +1686,13 @@ placeBeats();
 new ResizeObserver(placeBeats).observe(pinSection);
 
 // The lines wrap at a width the window decides, so their heights change with it
-// and the centring above goes stale. Same guard as the pin.
-new ResizeObserver(placeBeats).observe(beatsEl);
+// and the placement above goes stale. Same guard as the pin.
+//
+// The panel, not the track inside it: the track's height is now something
+// `placeBeats` writes, and watching a box you resize from the callback is a loop
+// that never settles — it froze the renderer outright. The panel is what sets
+// the measure the lines wrap to anyway.
+new ResizeObserver(placeBeats).observe(beatColumn);
 
 // And the readout, because the foot of the readable column is its top edge.
 new ResizeObserver(placeBeats).observe(driveSlot);
@@ -1844,30 +1845,29 @@ function pinProgress() {
 let lastProgress = -1;
 
 /**
- * Clip the text to the platform.
+ * Move the text under the platform, by scrolling the platform.
  *
- * A section arrives from the foot of the window, so without this it is drawn on
- * the scene below the platform before it reaches it — and the fade could only
- * ever *paint over* that, which meant a pale band under the panel exactly where
- * its bottom edge is supposed to read.
+ * The two live in different coordinate spaces — the sections are laid down the
+ * pinned section, the platform is held still in the window — and this is the one
+ * conversion between them. A moment at `t` down the track has to appear at `t`
+ * below the top of the section, so the platform's scroll offset is however far
+ * the page has come into the section, plus the platform's own inset. Until the
+ * panel has stuck, it is still riding up with the section and the offset is zero
+ * — which is what the clamp says.
  *
- * The clip has to be recomputed as the page moves because the two things are in
- * different coordinate spaces: the sections are placed down the pin, and the
- * platform is fixed in the window. This converts the window band into track
- * coordinates. It is one style write per frame, and only when it changes.
+ * A real scroll rather than moving the track, because it costs no layout and,
+ * more to the point, `position: sticky` inside works against the panel's box.
+ * The panel itself never depends on this: it is a plain sticky element the
+ * compositor holds still, so a frame this misses moves the words and not the
+ * box. The version this replaced cut the track to a painted strip with a
+ * `clip-path` written here, and every missed frame slid the panel's edges.
  */
-function clipTrackToPlatform() {
+function scrollTrackToPage() {
   const y = window.scrollY - pinSection.offsetTop;
-  const height = beatsEl.offsetHeight;
-  if (height <= 0) return;
-  const top = Math.max(0, y + columnBand.top);
-  const bottom = Math.max(0, height - (y + columnBand.foot));
-  // Rounded to match the platform's corners, so a line of text passing the edge
-  // is cut on the same curve.
-  const clip = `inset(${top.toFixed(1)}px 0px ${bottom.toFixed(1)}px 0px round 18px)`;
-  if (clip === lastClip) return;
-  lastClip = clip;
-  beatsEl.style.clipPath = clip;
+  const offset = Math.max(0, y + columnTopPx);
+  if (offset === lastTrackScroll) return;
+  lastTrackScroll = offset;
+  beatColumn.scrollTop = offset;
 }
 
 function frame() {
@@ -1883,7 +1883,7 @@ function frame() {
   // `painted` flag makes this a no-op once settled.
   paintBodies();
 
-  clipTrackToPlatform();
+  scrollTrackToPage();
 
   const progress = pinProgress();
   if (progress !== lastProgress) {

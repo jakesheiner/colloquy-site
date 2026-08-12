@@ -61,15 +61,24 @@
         </div>
 
         <!--
-          The beats are written by main.js, not authored here: the camera's own
-          shot list supplies some and the recording's detected state changes
-          supply the rest. Each is placed down this track at the scroll position
-          of the moment it describes.
+          The platform the text sits on: held still over the scene, and the box
+          the text is actually inside rather than a strip painted behind it.
 
-          Outside the sticky stage, not inside it: anything in there is pinned
-          along with the scene, and this has to move.
+          It is a scroll container, and main.js drives its `scrollTop` from page
+          scroll. That is what moves the reading. Doing it this way rather than
+          clipping the track to a painted panel is deliberate — see the note on
+          `.beat-column` in the stylesheet.
         -->
-        <div class="beat-track" id="beats"></div>
+        <div class="beat-column" id="beat-column">
+          <!--
+            The beats are written by main.js, not authored here: the camera's own
+            shot list supplies some and the recording's detected state changes
+            supply the rest. Each is placed down this track at the scroll
+            position of the moment it describes, so the track is as tall as the
+            whole pinned section and the platform shows a window onto it.
+          -->
+          <div class="beat-track" id="beats"></div>
+        </div>
 
         <!--
           main.js builds the drive readout in here, if the clip carries one.
