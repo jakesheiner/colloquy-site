@@ -50,33 +50,35 @@
 
       <section class="pin-section" id="pin-section">
         <!--
-          Two columns. The picture is held on the left for the whole pinned
-          scroll; the lines run down the right and the reader scrolls through
-          them. Only the left column is sticky — the track has to move, because
-          its movement is what reading is here.
+          Full bleed: the scene is the page here, edge to edge, with the text
+          laid over it rather than beside it. The stage and the readout are held
+          for the whole pinned scroll; the text is a column floating over the
+          right of it, and that column scrolls — its movement is the reading.
         -->
         <div class="pin-stage">
-          <div class="pin-sticky">
-            <!-- Takes the flexible height; the frame holds 16:9 inside it. -->
-            <div class="frame-fit">
-              <div class="frame">
-                <div class="stage" id="stage"></div>
-                <p class="stage-error" id="stage-error" role="status"></p>
-              </div>
-            </div>
-
-            <!-- main.js builds the drive readout in here, if the clip carries one. -->
-            <div class="readout" id="drive-slot"></div>
-          </div>
-
-          <!--
-            The beats are written by main.js, not authored here: the camera's own
-            shot list supplies some and the recording's detected state changes
-            supply the rest. Each is placed down this track at the scroll
-            position of the moment it describes.
-          -->
-          <div class="beat-track" id="beats"></div>
+          <div class="stage" id="stage"></div>
+          <p class="stage-error" id="stage-error" role="status"></p>
         </div>
+
+        <!--
+          The beats are written by main.js, not authored here: the camera's own
+          shot list supplies some and the recording's detected state changes
+          supply the rest. Each is placed down this track at the scroll position
+          of the moment it describes.
+
+          Outside the sticky stage, not inside it: anything in there is pinned
+          along with the scene, and this has to move.
+        -->
+        <div class="beat-track" id="beats"></div>
+
+        <!--
+          main.js builds the drive readout in here, if the clip carries one.
+
+          A sibling of the track rather than a child of the stage, and above it:
+          the text has to be able to fade out behind the bars as it leaves, and
+          inside the stage the readout would be painted under the whole track.
+        -->
+        <div class="readout" id="drive-slot"></div>
       </section>
     </main>
     <script type="module" src="/src/main.js"></script>

@@ -1074,6 +1074,10 @@ const scratch = viewer.camera.clone();
 // geometry off the border line itself.
 const SAFE_EDGE = 0.02;
 
+// Clearance between the piece and the things laid over it — the text column and
+// the readout — as a fraction of the window.
+const SAFE_GUTTER = 0.02;
+
 /**
  * The part of the frame the piece may be fitted into, in NDC (−1…1, y up).
  *
@@ -1088,12 +1092,49 @@ const SAFE_EDGE = 0.02;
  * that has to know.
  */
 function safeArea() {
-  return {
+  const full = {
     x0: -1 + SAFE_EDGE,
     x1: 1 - SAFE_EDGE,
     y0: -1 + SAFE_EDGE,
     y1: 1 - SAFE_EDGE,
   };
+
+  const canvas = viewer.renderer.domElement;
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (width === 0 || height === 0) return full;
+
+  // A pixel down the window, as NDC — y is up, so the top of the window is 1.
+  const ndcY = (px) => 1 - (px / height) * 2;
+
+  const area = { ...full };
+
+  // The text floats over the right of the scene, so the piece gets what is left
+  // of it. Read out of the live layout rather than hard-coded, so moving the
+  // column in the stylesheet moves the piece with it.
+  //
+  // `offsetLeft` rather than a rect: the track spans the whole section and the
+  // section is as wide as the window, so its offset is its position on screen —
+  // and unlike a rect, it does not depend on where the page happens to be
+  // scrolled when the shots are baked.
+  const track = document.querySelector('.beat-track');
+  if (track && track.offsetWidth > 0) {
+    const edge = (track.offsetLeft / width - SAFE_GUTTER) * 2 - 1;
+    area.x1 = Math.max(Math.min(area.x1, edge), -0.2);
+  }
+
+  // The readout lies across the foot of it, so keep the piece above that too.
+  // Its top edge is written into the layout by `placeBeats()`, which is the one
+  // place that measures it.
+  const readout = document.querySelector('.readout');
+  if (readout && readout.offsetHeight > 0) {
+    const top = parseFloat(getComputedStyle(readout).getPropertyValue('--readout-top'));
+    if (Number.isFinite(top)) {
+      area.y0 = Math.min(Math.max(area.y0, ndcY(top) + SAFE_GUTTER * 2), 0.2);
+    }
+  }
+
+  return area;
 }
 
 /**
@@ -1423,6 +1464,17 @@ function writeBody(el, text) {
   if (last < text.length) el.append(text.slice(last));
 }
 
+// The surface the column floats on. First, so it sits under the text.
+//
+// The scene is full bleed here, and `safeArea()` only keeps the shot's *subject*
+// clear of this column — the bodies it is not framing still swing through it, so
+// on the close-up there is magenta and blue right behind the words. This is what
+// makes them readable anyway.
+const beatScrim = document.createElement('div');
+beatScrim.className = 'beat-scrim';
+beatScrim.setAttribute('aria-hidden', 'true');
+beatsEl.append(beatScrim);
+
 for (const beat of beats) {
   const block = document.createElement('section');
   block.className = 'beat';
@@ -1481,8 +1533,9 @@ for (const end of ['top', 'bottom']) {
  * its moment or jump on arriving at it, so the CSS reads it from the custom
  * property this sets rather than repeating the figure.
  */
-// Only the narrow layout uses this now: beside the frame the sections align to
-// the frame's own top edge instead, measured off the layout.
+// Where a section comes to rest, as a share of the window height. The scene is
+// full bleed here, so there is nothing in the layout to align to — this is the
+// one place the height of the column's reading position is set.
 const HEADLINE_TOP = 0.2;
 
 /**
@@ -1511,27 +1564,25 @@ function placeBeats() {
   const travel = pinSection.offsetHeight - window.innerHeight;
   if (travel <= 0) return;
 
-  // Where the top of a section should land when the scroll is on its moment.
+  // Where the column starts, and where a section comes to rest inside it.
   //
-  // Beside the frame, that is the frame's own top edge: a headline and the
-  // picture it describes start on the same line. Measured rather than set,
-  // because the frame holds a fixed aspect and is centred in whatever height the
-  // column has left, so where its top falls depends on the window — a share of
-  // the viewport happened to be close on one size and drifted on every other.
-  //
-  // `offsetTop` is against `.pin-sticky`, which is the frame's offset parent and
-  // is itself pinned to the top of the window for the whole pinned scroll. So its
-  // coordinates and the viewport's are the same thing here.
-  //
-  // Stacked under the picture — the narrow layout — there is no aligning to do:
-  // the words have to clear the picture entirely or they land behind it.
-  const sticky = document.querySelector('.pin-sticky');
-  const frame = document.querySelector('.frame');
-  const stacked = sticky ? sticky.offsetWidth > pinSection.clientWidth * 0.9 : false;
-  const from = stacked && sticky ? sticky.offsetHeight : 0;
-  const offset = !stacked && frame
-    ? frame.offsetTop
-    : from + (window.innerHeight - from) * HEADLINE_TOP;
+  // Beside the scene there is room for both, so the column runs the full height
+  // and sections rest a fifth of the way down. Stacked — the narrow layout, where
+  // the column is as wide as the window — an opaque column that tall would hide
+  // the piece completely, so it takes the lower part of the screen and leaves the
+  // top to the scene.
+  const narrow = window.matchMedia('(max-width: 900px)').matches;
+  const columnTop = narrow ? window.innerHeight * 0.44 : 0;
+  const offset = columnTop + (window.innerHeight - columnTop) * HEADLINE_TOP;
+
+  // The foot of the readable column is the top of the readout, not the bottom of
+  // the window: the bars lie across the foot of the scene, and text running into
+  // them would be unreadable over the top of them.
+  // Clearance under the bars, in px.
+  const READOUT_GAP = Math.round(Math.min(40, Math.max(18, window.innerHeight * 0.035)));
+  const readoutTop = driveSlot && driveSlot.offsetHeight > 0
+    ? window.innerHeight - driveSlot.offsetHeight - READOUT_GAP
+    : window.innerHeight;
 
   beatsEl.style.setProperty('--headline-top', `${offset.toFixed(1)}px`);
   // Where the column starts being readable, and so where the fade has to reach
@@ -1539,13 +1590,26 @@ function placeBeats() {
   // picture when stacked under it. The fade runs from here down to where the
   // sections sit, so a section is solid while it is being read and gone by the
   // time it has been pushed clear.
-  beatsEl.style.setProperty('--veil-top', `${from.toFixed(1)}px`);
+  beatsEl.style.setProperty('--veil-top', `${columnTop.toFixed(1)}px`);
   // Where the fade at the foot of the column starts. Given as a distance from the
   // top of the window rather than as `bottom: 0`, because both veils sit at the
   // top of the track in the flow and a bottom-stuck element there has nothing
   // below it to hold against — it simply scrolls away with the track. Pinned by
   // offset it stays at the foot for the whole pin.
-  beatsEl.style.setProperty('--veil-foot', `${(window.innerHeight - (offset - from)).toFixed(1)}px`);
+  // The fade at the foot starts one fade-depth above the readout. That depth is
+  // measured from the top of the *column*, not the top of the window — they are
+  // the same thing beside the scene, and are not once the column starts partway
+  // down the screen.
+  beatsEl.style.setProperty('--veil-foot', `${(readoutTop - (offset - columnTop)).toFixed(1)}px`);
+  // How far down the window the column's surface reaches: to the readout, and no
+  // further.
+  beatsEl.style.setProperty('--column-foot', `${readoutTop.toFixed(1)}px`);
+  // The readout is a sibling of the track now, so it needs telling where the foot
+  // of the window is too — same reason as the veil: stuck by an offset from the
+  // top, because it has nothing below it to hold a `bottom` against.
+  if (driveSlot) {
+    driveSlot.style.setProperty('--readout-top', `${readoutTop.toFixed(1)}px`);
+  }
 
   // Heights are cleared before anything is measured. `scrollHeight` on a box with
   // an explicit height reports *that* height, not the content's, so measuring
@@ -1570,7 +1634,7 @@ function placeBeats() {
   // distance is what is left below them — anything less and the section after
   // this one is already on screen underneath it, which is what made them read as
   // crowded no matter how much padding they were given.
-  const leastScroll = window.innerHeight - offset;
+  const leastScroll = readoutTop - offset;
 
   const tops = [];
   let cursor = -Infinity;
@@ -1610,10 +1674,8 @@ new ResizeObserver(placeBeats).observe(pinSection);
 // and the centring above goes stale. Same guard as the pin.
 new ResizeObserver(placeBeats).observe(beatsEl);
 
-// And the frame, because the lines are centred on *it*. Without this they keep
-// the positions they were given against a frame that has since been laid out at
-// a different height — measured, 338px adrift on first load.
-new ResizeObserver(placeBeats).observe(document.querySelector('.frame'));
+// And the readout, because the foot of the readable column is its top edge.
+new ResizeObserver(placeBeats).observe(driveSlot);
 
 // A line's height is only meaningful once the condensed face has arrived —
 // measured against the fallback, every line is centred against the wrong height

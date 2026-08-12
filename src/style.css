@@ -184,77 +184,16 @@ h1 {
   height: 1200vh;
 }
 
-/* Two columns: the picture on the left, the lines running down the right.
-
-   Not sticky itself — only the left column is. This has to be as tall as the
-   section so the track inside it has the full scroll to lay lines down; making
-   the whole thing sticky would pin the words too, and then nothing would move. */
+/* Full bleed: the scene is the page here, edge to edge, with the text laid over
+   it rather than beside it. Sticky, so it holds for the pinned scroll and
+   releases at the end of the section instead of riding over what follows. */
 .pin-stage {
-  position: relative;
-  /* The full height of the section, so the track has the whole scroll to lay
-     lines down. */
-  height: 100%;
-  padding: 0 clamp(16px, 4vw, 56px);
-}
-
-/* The left column: the picture, held for the whole pinned scroll, with its
-   readout under it. Sticky rather than fixed so it releases at the end of the
-   section instead of riding over whatever follows. */
-.pin-sticky {
   position: sticky;
   top: 0;
   height: 100svh;
-  /* The left column. In normal flow, so it can be sticky; the track is taken out
-     of flow and laid over the right of the same box. */
-  width: 58%;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(14px, 2vh, 24px);
-  padding: clamp(20px, 4vh, 44px) 0;
-  /* Its own stacking context, so the track cannot slide over the frame's edge. */
-  z-index: 1;
-  background: var(--bg);
-}
-
-/* The frame. It is exactly the camera's view: the canvas fills it, and
-   `applyFraming` sets `camera.aspect` from the canvas every frame, so the border
-   is drawn on the edges of the rendered image and nothing is letterboxed inside
-   it. Its size comes from the column — it does not change while scrolling, and
-   only the camera moves.
-
-   `min-height: 0` is what lets it actually shrink: a flex item defaults to its
-   content's minimum, and without this the frame refuses to give height back on a
-   short window and pushes the readout off the bottom. */
-/* Takes the flexible height in the column and centres the frame in it.
-
-   `min-height: 0` is what lets it actually shrink: a flex item defaults to its
-   content's minimum, and without this it refuses to give height back on a short
-   window and pushes the readout off the bottom. */
-.frame-fit {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Makes this box's width and height addressable as `cqw`/`cqh` below. */
-  container-type: size;
-}
-
-.frame {
-  position: relative;
-  /* 16:9, sized as the smaller of "as wide as the column" and "as wide as the
-     height allows at this ratio", so whichever runs out first constrains it and
-     the other follows. `aspect-ratio` cannot do this alone: with only `max-*` and
-     no basis the box collapses to nothing, and fixing either dimension makes the
-     other overflow instead of shrinking. A wide, short window is the case that
-     needs it — there the height is what binds. */
-  width: min(100cqw, calc(100cqh * 16 / 9));
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--bg);
-  /* Also what clips the canvas to the rounded corners. */
+  width: 100%;
   overflow: hidden;
+  background: var(--bg);
 }
 
 /* The player creates its canvas inside this element and sizes it to fit.
@@ -266,6 +205,27 @@ h1 {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+
+/* The readout, held across the foot of the scene, over the picture rather than
+   under it. `safeArea()` in main.js keeps the piece clear of it.
+
+   Sticky by an offset from the top of the window rather than `bottom: 0`: it sits
+   at the top of the section in the flow, and a bottom-stuck element there has
+   nothing below it to hold against — it just scrolls away. `--readout-top` is
+   whatever `placeBeats()` measured its own height to be.
+
+   Above the text track, so text can fade out behind the bars on its way off the
+   bottom instead of sliding over them. */
+.readout {
+  position: sticky;
+  top: var(--readout-top, 88svh);
+  margin-left: clamp(16px, 4vw, 56px);
+  margin-right: clamp(16px, 4vw, 56px);
+  /* Paints, does not displace. */
+  margin-bottom: -100px;
+  z-index: 3;
+  pointer-events: none;
 }
 
 .stage canvas {
@@ -303,16 +263,16 @@ h1 {
    hundreds of pixels and every line sat that far from its moment. Out of flow,
    its origin is the section's origin in both layouts and the arithmetic holds. */
 .beat-track {
+  /* Spans the whole pinned section — that is the coordinate space `placeBeats()`
+     positions each section in — and floats over the right of the scene. A
+     sibling of the sticky stage rather than a child of it, because anything
+     inside that box is pinned along with the scene and this has to move. */
   position: absolute;
   top: 0;
   bottom: 0;
   right: clamp(16px, 4vw, 56px);
-  width: 34%;
-  /* A stacking context of its own, below the sticky column's. The headlines
-     raise themselves above their own bodies, and without this that `z-index`
-     competes with the picture column's instead — on the narrow layout, where the
-     track runs under the picture, the headlines rode over it. */
-  z-index: 0;
+  width: min(30%, 400px);
+  z-index: 2;
 }
 
 /* One section per moment. Its height is set by `placeBeats()` to the stretch of
@@ -324,6 +284,30 @@ h1 {
    a hard line as it was pushed out; the fade at the top of the column does that
    job instead, softly. Sections are in scroll order, so the one arriving paints
    over the one leaving. */
+/* The column's surface: a single panel held for the whole pin, with the sections
+   scrolling over it. One panel rather than a card per section, or every push
+   would slide one translucent sheet across another.
+
+   Near-opaque on purpose. The scene behind it is white where the piece is not,
+   so a light scrim reads as a surface rather than a patch of the ground — but at
+   the close-up there are bodies right behind the words, and anything much more
+   transparent than this stops being readable. */
+.beat-scrim {
+  position: sticky;
+  top: var(--veil-top, 0px);
+  height: calc(var(--column-foot, 100svh) - var(--veil-top, 0px));
+  /* Out of the flow: it paints, it does not displace. */
+  margin-bottom: calc(0px - (var(--column-foot, 100svh) - var(--veil-top, 0px)));
+  /* Opaque rather than a light scrim. A translucent panel would be prettier over
+     the white parts of the scene, but the sections sliding over it have to be
+     opaque anyway — see `.beat-inner` — and two different whites in one column
+     shows as banding wherever a section ends. */
+  background: var(--bg);
+  border-radius: 14px;
+  box-shadow: 0 14px 44px rgba(19, 19, 22, 0.09);
+  pointer-events: none;
+}
+
 .beat {
   position: absolute;
   left: 0;
@@ -346,6 +330,9 @@ h1 {
 .beat-inner {
   position: sticky;
   top: var(--headline-top, 20vh);
+  /* Opaque, and it has to be: the section behind it is still on its way out
+     underneath, and anything translucent lets two sets of words composite over
+     each other mid-push. Matches the scrim, so the column reads as one surface. */
   background: var(--bg);
   /* Clear air under the last line, so the next section arrives into a gap rather
      than straight onto it. Sticky pushes a block out when its parent's bottom
@@ -403,8 +390,14 @@ h1 {
 /* And what an incoming one arrives out of, at the foot of the window — the same
    gradient turned over, so text surfaces rather than appearing all at once on a
    line. */
+/* Runs from the foot of the column to the bottom of the window, not just the
+   depth of the fade: a section arriving from below is drawn across that whole
+   band, and anything the veil does not reach shows up unfaded under the column. 
+   Solid by the time it passes the readout. */
 .beat-veil-bottom {
   top: var(--veil-foot, 80vh);
+  height: calc(100svh - var(--veil-foot, 80vh));
+  margin-bottom: calc(0px - (100svh - var(--veil-foot, 80vh)));
   background: linear-gradient(
     to top,
     var(--bg) 0%,
@@ -475,10 +468,6 @@ h1 {
 ------------------------------------------------------------------ */
 /* The band it sits in, under the frame in the sticky column. Fixed to its
    content's height so the frame above gets everything else. */
-.readout {
-  flex: none;
-}
-
 /* Laid out in a row now that it is under a wide frame rather than inside a
    narrow box: five units across, which also keeps this band short enough to
    leave the picture most of the window. */
@@ -622,17 +611,11 @@ h1 {
    phone — each cell would be ~60px. It wraps to a grid instead, and the caption
    gives back some size so the frame keeps most of the window. */
 @media (max-width: 900px) {
-  /* Stacked: there is no room for a track beside the picture. The picture takes
-     the top of the screen and holds there; the lines run up through the space
-     under it, full width. `placeBeats()` reads this layout off the sticky
-     column's width and centres each line in what is left below, rather than in
-     the middle of the window where the picture is. */
-  .pin-sticky {
-    width: 100%;
-    height: 62svh;
-    padding-bottom: 0;
-  }
-
+  /* No room for a column beside the piece: the text runs the full width of the
+     scene instead, still floating over it. The camera keeps out of its way the
+     same as before — `safeArea()` reads the track out of the layout, so a track
+     that now spans the window reserves the whole lower band rather than a
+     right-hand strip. */
   .beat-track {
     left: clamp(16px, 4vw, 56px);
     width: auto;
@@ -651,11 +634,6 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px 18px;
   }
-
-  
-
-  
-
 }
 
 /* Shorter than it is narrow — a laptop in a small window. The picture is the
