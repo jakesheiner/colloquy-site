@@ -67,11 +67,24 @@ main {
 }
 
 /* ---------------------------------------------------------------
-   The site's headline, held over everything
+   The site's headline, and the title screen it starts in the middle of
 ------------------------------------------------------------------ */
-/* There is no title page. The piece is the page from the first pixel, and this
-   is the only thing that says what is being looked at — so it is fixed, not
-   scrolled away from.
+/* A white page with the headline in the middle, and nothing else in it. Empty
+   on purpose: the headline is not in here, it is the fixed one below, and this
+   is only the run of scroll it crosses on its way to the top of the window. */
+.title-screen {
+  height: 100svh;
+}
+
+/* The headline itself, held over the whole site — the title screen and the
+   scene both. There is one of it, and it moves: it starts large and centred in
+   the window, and by the time the reader is past the title screen it has settled
+   into the top of it, where it stays for the rest of the page.
+
+   Fixed and laid out *at the resting position*, with the title-screen state
+   reached by a transform on top of it. That way the thing that has to be right
+   for the whole of the rest of the page is the thing the stylesheet states, and
+   the opening is the special case rather than the other way round.
 
    Not a surface, just ink: the scene behind it is white wherever the piece is
    not, and `safeArea()` keeps the shot's subject from passing under it, so it
@@ -86,13 +99,21 @@ main {
   right: 0;
   padding: 0 clamp(16px, 4vw, 56px);
   text-align: center;
+  /* Scaled about its own top centre, so growing it does not move where its first
+     line sits and `positionHead()` has one number to place rather than two. */
+  transform-origin: 50% 0;
+  will-change: transform;
   /* Above the panel, the readout and the arrows. Nothing should cover this. */
   z-index: 6;
   /* Ink, not a target — the scene is underneath it. */
   pointer-events: none;
 }
 
+/* `inline-block` so the box is the width of the words rather than of the window.
+   That is what lets `positionHead()` see how much bigger the headline can be
+   drawn before it runs out of room sideways. */
 .site-head h1 {
+  display: inline-block;
   margin: 0;
   font: 600 clamp(23px, 2.5vw, 40px) / 1 var(--condensed);
   letter-spacing: 0.005em;
@@ -431,8 +452,12 @@ main {
   margin-left: auto;
   margin-right: clamp(16px, 4vw, 56px);
   width: min(30%, 400px);
-  /* Paints, does not displace. */
-  margin-bottom: -120px;
+  /* Paints, does not displace — and by its own height exactly, not by a round
+     number over it. The readout is the sibling after this one, and anything left
+     over here pulls that up the page: at -120 against a 38px row it hauled the
+     drive bars 82px above the top of the pinned section and printed them across
+     the foot of the title screen. `placeBeats` measures the row. */
+  margin-bottom: calc(0px - var(--nav-height, 38px));
   padding: 0 clamp(20px, 2vw, 34px);
   display: flex;
   justify-content: flex-end;

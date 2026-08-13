@@ -256,6 +256,9 @@ const beatsEl = document.getElementById('beats');
 // picture it belongs to rather than scrolling away with the words.
 const driveSlot = document.getElementById('drive-slot');
 const pinSection = document.getElementById('pin-section');
+// The white page the headline starts in the middle of, and the headline itself.
+const titleScreen = document.getElementById('title-screen');
+const siteHead = document.querySelector('.site-head');
 // Step to the previous or next headline.
 const beatNav = document.getElementById('beat-nav');
 const beatPrev = document.getElementById('beat-prev');
@@ -1222,17 +1225,19 @@ function safeArea() {
     area.x1 = Math.max(Math.min(area.x1, edge), -0.2);
   }
 
-  // The headline is held across the top of it. A rect rather than a written-in
-  // offset like the readout's below: it is `position: fixed`, so its rect is
-  // already a position in the window and does not move with the scroll — which
-  // is the property that matters when the shots are baked.
+  // The headline is held across the top of it. Its *resting* foot, measured by
+  // `measureHead`, and emphatically not its rect: the headline moves, from the
+  // middle of the title screen to the top of the window, so its rect is a
+  // function of the scroll. The shots are baked once, and a bake that caught the
+  // headline mid-move reserved half the window and fitted the whole piece into
+  // what was left — the establishing shot came up a quarter of the size it should
+  // be. Same trap the readout's `--readout-top` avoids, for the same reason.
   //
-  // The band runs the full width even though the words only reach across the
-  // left of it. `safeArea` is a rectangle, and the alternative — an L-shaped
-  // region — is not something the fit could use.
-  const head = document.querySelector('.site-head');
-  if (head && head.offsetHeight > 0) {
-    const foot = head.getBoundingClientRect().bottom;
+  // The band runs the full width even though the words only cross the middle of
+  // it. `safeArea` is a rectangle, and the alternative — a region with a notch in
+  // it — is not something the fit could use.
+  if (headHeight > 0) {
+    const foot = headRestTop + headHeight;
     area.y1 = Math.max(Math.min(area.y1, ndcY(foot) - SAFE_GUTTER * 2), -0.2);
   }
 
@@ -2054,6 +2059,8 @@ function placeBeats() {
   beatColumn.style.setProperty('--nav-band', `${navBand.toFixed(1)}px`);
   if (beatNav) {
     beatNav.style.setProperty('--nav-top', `${(columnFoot - NAV_AIR - navHeight).toFixed(1)}px`);
+    // What it has to take back out of the flow to displace nothing.
+    beatNav.style.setProperty('--nav-height', `${navHeight.toFixed(1)}px`);
   }
   // The track is as tall as the section it maps, so the panel has that much to
   // scroll through. Measured, not a `vh` calc, for the same reason the sections
@@ -2273,6 +2280,100 @@ function updateSignals(reading) {
 
 updateDrives(0);
 
+// --- the headline's move off the title screen ---------------------------------
+
+/**
+ * The headline starts large in the middle of the title screen and settles into
+ * the top of the window as the reader leaves it.
+ *
+ * One headline doing this, rather than a title that scrolls away and a second
+ * one that appears: it is the same words throughout, so it should be the same
+ * words on screen throughout, and the reader should be able to watch where they
+ * went. A crossfade between two copies would read as a substitution.
+ *
+ * Driven by a transform, not by font size. The size is the stylesheet's, stated
+ * once, at the value it holds for the whole of the rest of the page; this only
+ * scales it. Setting `font-size` from the scroll would relayout the element every
+ * frame and, worse, would make the resting size a thing computed in two places.
+ */
+const TITLE_SCALE = 2.3;
+// The move is done a little before the title screen is, so the headline has
+// arrived by the time the scene does rather than still settling over it.
+const TITLE_RUN = 0.82;
+
+let headHeight = 0;
+let headRestTop = 0;
+let headScale = 1;
+let headShown = -1;
+
+/**
+ * Measure the headline at rest, and work out how much bigger it can be drawn.
+ *
+ * The transform is cleared first: everything here is the *resting* geometry, and
+ * with a transform still applied the rect would report wherever the last frame
+ * had put it.
+ *
+ * The scale is capped by the room across. At `TITLE_SCALE` the words are drawn
+ * more than twice the size they are laid out at — the layout does not know that,
+ * so on a narrow window they would run off both edges rather than wrap. The cap
+ * is what the words fit in, so the title is as large as it can be and no larger.
+ */
+function measureHead() {
+  if (!siteHead) return;
+  const words = siteHead.querySelector('h1');
+  if (!words) return;
+  siteHead.style.transform = '';
+  const rect = siteHead.getBoundingClientRect();
+  headHeight = rect.height;
+  headRestTop = rect.top;
+  const style = getComputedStyle(siteHead);
+  const room = siteHead.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const across = words.getBoundingClientRect().width;
+  headScale = across > 0 ? Math.min(TITLE_SCALE, Math.max(1, room / across)) : TITLE_SCALE;
+  // Put it back where the scroll says it should be, this frame rather than next:
+  // the line above has just moved it, and a frame at the resting position is a
+  // flicker at the top of the window.
+  headShown = -1;
+  positionHead();
+}
+
+/** Place the headline for the current scroll. Called every frame, written on a
+ *  change — and outside the stage's own on-screen check in `frame`, because the
+ *  whole of this happens while the stage is still below the window. */
+function positionHead() {
+  if (!siteHead || headHeight === 0) return;
+  const run = titleScreen ? titleScreen.offsetHeight * TITLE_RUN : 0;
+  const t = run > 0 ? clamp01(window.scrollY / run) : 1;
+  // Eased against the scroll rather than tracking it flat, so the headline holds
+  // its title size for a moment before it goes and lands rather than stops.
+  const shown = t * t * (3 - 2 * t);
+  if (Math.abs(shown - headShown) < 0.002) return;
+  headShown = shown;
+  if (shown === 1) {
+    siteHead.style.transform = '';
+    return;
+  }
+  const scale = headScale + (1 - headScale) * shown;
+  // Where it has to sit to be centred in the window at title size, as an offset
+  // from where the stylesheet rests it.
+  const middle = (window.innerHeight - headHeight * headScale) / 2 - headRestTop;
+  siteHead.style.transform = `translateY(${(middle * (1 - shown)).toFixed(1)}px) scale(${scale.toFixed(4)})`;
+}
+
+measureHead();
+
+// The resting position is set in `vh` and the room across in `vw`, so both ends
+// of the move change with the window. The observer as well as the listener: the
+// title screen is sized in `svh`, and a mobile toolbar sliding away changes that
+// without reliably firing `resize` at all.
+window.addEventListener('resize', measureHead);
+if (titleScreen) new ResizeObserver(measureHead).observe(titleScreen);
+
+// The width of the words is what caps the title size, and it is not their real
+// width until the condensed face has arrived — measured against the fallback the
+// headline comes out at the wrong size on the first paint and corrects itself.
+if (document.fonts) document.fonts.ready.then(measureHead);
+
 // --- stepping between headlines ----------------------------------------------
 
 /**
@@ -2456,9 +2557,11 @@ function scrollTrackToPage() {
 function frame() {
   requestAnimationFrame(frame);
 
-  // Before the check below, not after: a step is a scroll, and it has to keep
-  // moving even on the frames where it has carried the stage off screen.
+  // Both before the check below, not after. A step is a scroll and has to keep
+  // moving even on the frames where it has carried the stage off screen; and the
+  // headline's whole move happens while the stage is still below the window.
   advanceStep();
+  positionHead();
 
   const rect = pinSection.getBoundingClientRect();
   if (rect.bottom <= 0 || rect.top >= window.innerHeight) return; // stage off screen

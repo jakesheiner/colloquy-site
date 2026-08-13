@@ -27,6 +27,15 @@
     </header>
 
     <main>
+      <!--
+        The title screen: a white page with the headline in the middle of it, and
+        nothing else. It is empty because the headline is not in it — the headline
+        is the fixed one above, held over the whole site, and this is the run of
+        scroll it crosses on its way from the middle of the window to the top.
+        main.js sizes that move off this section's height.
+      -->
+      <section class="title-screen" id="title-screen" aria-hidden="true"></section>
+
       <section class="pin-section" id="pin-section">
         <!--
           Full bleed: the scene is the page here, edge to edge, with the text
