@@ -256,6 +256,10 @@ const beatsEl = document.getElementById('beats');
 // picture it belongs to rather than scrolling away with the words.
 const driveSlot = document.getElementById('drive-slot');
 const pinSection = document.getElementById('pin-section');
+// Step to the previous or next headline.
+const beatNav = document.getElementById('beat-nav');
+const beatPrev = document.getElementById('beat-prev');
+const beatNext = document.getElementById('beat-next');
 
 function fail(message) {
   errorEl.textContent = message;
@@ -1854,12 +1858,10 @@ for (const beat of beats) {
  * A section whose text more than fills its stretch has no room to stage anything;
  * everything in it lands at once, which is what it did before any of this.
  */
-function scheduleLines(offset) {
+function scheduleLines() {
   for (const line of timedLines) {
     const beat = line.beat;
     const box = parseFloat(beat.el.style.height) || 0;
-    // Where the section comes to rest, in the same measure as the scroll below.
-    beat.restFrom = (parseFloat(beat.el.style.top) || 0) - offset;
     if (line.at !== null) {
       line.atPx = line.at * box;
       continue;
@@ -1931,6 +1933,9 @@ for (const end of ['top', 'bottom']) {
 // full bleed here, so there is nothing in the layout to align to — this is the
 // one place the height of the column's reading position is set.
 const HEADLINE_TOP = 0.2;
+
+/** Air above and below the arrows, inside the panel. */
+const NAV_AIR = 12;
 
 // Where the platform's top edge sits in the window, written by `placeBeats()`
 // and read by `scrollTrackToPage()` — the second runs every frame, so it is kept
@@ -2016,6 +2021,15 @@ function placeBeats() {
   beatColumn.style.setProperty('--column-top', `${columnTop.toFixed(1)}px`);
   beatColumn.style.setProperty('--column-band', `${(columnFoot - columnTop).toFixed(1)}px`);
   beatColumn.style.setProperty('--headline-top', `${pad.toFixed(1)}px`);
+  // The strip at the foot of the panel that the arrows sit in, and that the text
+  // fades out above rather than passing behind. Its height is the buttons' own,
+  // measured, plus air either side — so restyling them moves the text with them.
+  const navHeight = beatNav && beatNav.offsetHeight > 0 ? beatNav.offsetHeight : 0;
+  const navBand = navHeight > 0 ? navHeight + NAV_AIR * 2 : 0;
+  beatColumn.style.setProperty('--nav-band', `${navBand.toFixed(1)}px`);
+  if (beatNav) {
+    beatNav.style.setProperty('--nav-top', `${(columnFoot - NAV_AIR - navHeight).toFixed(1)}px`);
+  }
   // The track is as tall as the section it maps, so the panel has that much to
   // scroll through. Measured, not a `vh` calc, for the same reason the sections
   // below are: it cannot be allowed to disagree with the arithmetic.
@@ -2066,6 +2080,9 @@ function placeBeats() {
     const beat = beats[i];
     const content = beat.el.scrollHeight;
     beat.el.style.top = `${tops[i].toFixed(1)}px`;
+    // How far into the pin this section comes to rest. Read by the blurb
+    // schedule and by the arrows, which step between exactly these.
+    beat.restFrom = tops[i] - offset;
 
     // Run to the next section, or to the end of the pin for the last one. Never
     // shorter than the text itself, or a long section inside a short gap would
@@ -2077,7 +2094,7 @@ function placeBeats() {
 
   // Now that every section knows how much scroll it owns and how tall it is,
   // work out where its blurbs arrive.
-  scheduleLines(offset);
+  scheduleLines();
 
   // The panel moved, so the track has to be re-offset now rather than waiting
   // for the next frame — otherwise a resize leaves the text at the old position
@@ -2231,6 +2248,111 @@ function updateSignals(reading) {
 
 updateDrives(0);
 
+// --- stepping between headlines ----------------------------------------------
+
+/**
+ * The arrows at the foot of the panel: one headline back, one forward.
+ *
+ * They are a way *through* the page, not a way past it. Everything here is
+ * scrubbed by the scroll position — the recording, the camera, the blurbs coming
+ * up — so a jump would skip all of it at once and land the reader somewhere with
+ * no idea how they got there. The step is therefore scrolled rather than set,
+ * slowly enough that the piece can be watched moving between the two stops.
+ *
+ * Not `scrollTo({ behavior: 'smooth' })`. Its duration is the browser's to
+ * choose, and for the distances here — a section is two to eight windowfuls — it
+ * covers the ground in a few hundred milliseconds, which is the jump this is
+ * trying not to be. So the pace is set here: a steady speed, floored so a short
+ * step is not instant and capped so the longest is not a journey.
+ */
+const STEP_SPEED = 1.8; // px per millisecond
+const STEP_SHORTEST = 700;
+const STEP_LONGEST = 3500;
+
+const stillMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** The step in progress, or null. Advanced in `frame`. */
+let step = null;
+
+/** Where a section comes to rest, as a scroll position on the page. */
+const stopAt = (beat) => pinSection.offsetTop + beat.restFrom;
+
+/**
+ * The stop before and after where the reader is, or null at either end.
+ *
+ * `back` is the last stop *behind* the reader, which is the current section's own
+ * top whenever they are somewhere inside it rather than sitting exactly on it.
+ * That is what makes the pair read as a way of walking the script: forward goes
+ * to the next thing, back returns to the top of what you are reading.
+ */
+function stepTargets() {
+  // Where a step already under way is headed, rather than where it has got to.
+  // Otherwise a second press part-way through aims at the stop it is already on
+  // its way to, and starts the same journey again from closer up.
+  const y = step ? step.from + step.distance : window.scrollY;
+  let back = null;
+  let on = null;
+  for (const beat of beats) {
+    if (beat.restFrom === undefined) continue;
+    const at = stopAt(beat);
+    if (at < y - 4) back = beat;
+    else if (on === null && at > y + 4) on = beat;
+  }
+  return { back, on };
+}
+
+function updateNav() {
+  if (!beatPrev || !beatNext) return;
+  const { back, on } = stepTargets();
+  beatPrev.disabled = back === null;
+  beatNext.disabled = on === null;
+}
+
+function stepTo(beat) {
+  if (!beat) return;
+  const to = stopAt(beat);
+  const from = window.scrollY;
+  const distance = to - from;
+  if (Math.abs(distance) < 2) return;
+  if (stillMotion.matches) {
+    window.scrollTo(0, to);
+    return;
+  }
+  const ms = Math.min(STEP_LONGEST, Math.max(STEP_SHORTEST, Math.abs(distance) / STEP_SPEED));
+  step = { from, distance, at: performance.now(), ms };
+}
+
+/** Carry a step along. Eased at both ends, so it sets off and arrives rather
+ *  than starting and stopping at full tilt. */
+function advanceStep() {
+  if (!step) return;
+  const t = clamp01((performance.now() - step.at) / step.ms);
+  window.scrollTo(0, Math.round(step.from + step.distance * settle(t)));
+  if (t >= 1) step = null;
+}
+
+beatPrev?.addEventListener('click', () => stepTo(stepTargets().back));
+beatNext?.addEventListener('click', () => stepTo(stepTargets().on));
+
+// The reader always outranks the step. Scrolling under way is theirs to
+// interrupt, and these are the events that mean they have — `scroll` itself is
+// not one of them, because the step is generating those.
+//
+// Except from the arrows themselves. Pressing one is not an interruption, it is
+// the next step, and these all reach the window before the `click` does: cancel
+// on the way past and the handler below finds nothing under way and steps from
+// where the last one had got to rather than from where it was going.
+for (const kind of ['wheel', 'touchstart', 'keydown', 'mousedown']) {
+  window.addEventListener(
+    kind,
+    (event) => {
+      if (event.target instanceof Element && event.target.closest('.beat-nav')) return;
+      step = null;
+    },
+    { passive: true }
+  );
+}
+
 // --- scroll -----------------------------------------------------------------
 
 function pinProgress() {
@@ -2285,6 +2407,10 @@ function scrollTrackToPage() {
 function frame() {
   requestAnimationFrame(frame);
 
+  // Before the check below, not after: a step is a scroll, and it has to keep
+  // moving even on the frames where it has carried the stage off screen.
+  advanceStep();
+
   const rect = pinSection.getBoundingClientRect();
   if (rect.bottom <= 0 || rect.top >= window.innerHeight) return; // stage off screen
 
@@ -2309,6 +2435,7 @@ function frame() {
     // a time as the demonstration reaches them.
     updateDrives(head);
     revealLines(progress);
+    updateNav();
   }
 
   if (performance.now() - lastDrawAt > 8) {

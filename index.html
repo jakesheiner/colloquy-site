@@ -81,6 +81,25 @@
         </div>
 
         <!--
+          Step to the previous or next headline. A sibling of the platform rather
+          than something inside it: everything in there is on the track, and the
+          track is what these move. They are held at the platform's foot, in a
+          strip the text fades out above — see `--nav-band` in the stylesheet.
+        -->
+        <div class="beat-nav" id="beat-nav">
+          <button type="button" class="beat-nav-button" id="beat-prev" aria-label="Previous section">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <button type="button" class="beat-nav-button" id="beat-next" aria-label="Next section">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        <!--
           main.js builds the drive readout in here, if the clip carries one.
 
           A sibling of the track rather than a child of the stage, and above it:
