@@ -816,7 +816,10 @@ const SCRIPT = [
       { voice: 'party', text: 'The sculpture can represent people interacting at a party. Their conversations have a beginning, a middle, and an end.' },
       { voice: 'model', text: 'Five agents hang from the mobile. Each can move independently, communicate, and affect the others.' },
       { voice: 'party', text: 'Guests arrive with interests, and a growing desire to share them.' },
-      { voice: 'model', text: 'Every agent has two drive states — Orange and Puce — which grow over time.' },
+      // The readout across the foot of the scene comes up with this line — it is
+      // the line that says what those bars are, and before it they are five
+      // unexplained meters under the picture.
+      { voice: 'model', shows: 'drives', text: 'Every agent has two drive states — Orange and Puce — which grow over time.' },
     ],
   },
   {
@@ -1820,6 +1823,20 @@ const timedLines = [];
 /** How far the reader scrolls while a line comes up. */
 const LINE_RISE = 130;
 
+/**
+ * The line the drive readout comes up with, if the script names one.
+ *
+ * The bars are the one part of the page that is not the piece and not the prose:
+ * five meters with no key, sitting under the picture from the first frame with
+ * nothing yet said about them. So they wait for the sentence that says what they
+ * are, and arrive on it — which makes them the answer to a line the reader has
+ * just read rather than a thing that had been there all along unexplained.
+ *
+ * Marked in the script rather than found by matching the text, so rewording that
+ * line cannot quietly detach the bars from it.
+ */
+let driveLine = null;
+
 for (const beat of beats) {
   const block = document.createElement('section');
   block.className = 'beat';
@@ -1860,7 +1877,9 @@ for (const beat of beats) {
       // Hidden from the start rather than from the first frame, or every one of
       // them shows for a moment on load before the first reading hides it.
       line.style.opacity = '0';
-      timedLines.push({ el: line, beat, at: body.at ?? null, rank, of: waiting, atPx: 0, shown: -1 });
+      const entry = { el: line, beat, at: body.at ?? null, rank, of: waiting, atPx: 0, shown: -1 };
+      timedLines.push(entry);
+      if (body.shows === 'drives') driveLine = entry;
     }
     inner.append(line);
   });
@@ -1929,6 +1948,19 @@ function revealLines(pin) {
     line.shown = shown;
     line.el.style.opacity = shown.toFixed(3);
     line.el.style.transform = shown === 1 ? '' : `translateY(${((1 - shown) * 22).toFixed(1)}px)`;
+
+    // The drive readout comes up on its own line, and on the same reading of the
+    // scroll — written here rather than in a pass of its own so the two can never
+    // land a frame apart.
+    //
+    // Only what is drawn moves. The band the bars sit in is reserved from the
+    // start, in the layout and in `safeArea` both: the shots are baked once, so a
+    // camera that discovered this space part-way down the page would have to be
+    // re-solved, and the panel above would have to move with it.
+    if (line === driveLine && driveSlot) {
+      driveSlot.style.opacity = shown.toFixed(3);
+      driveSlot.style.transform = shown === 1 ? '' : `translateY(${((1 - shown) * 16).toFixed(1)}px)`;
+    }
   }
 }
 
@@ -2220,6 +2252,13 @@ if (driveTrack) {
   // The "spent" line, at the drive lower limit, on every bar at once.
   panel.style.setProperty('--spent-at', `${(driveTrack.lowerMark * 100).toFixed(2)}%`);
   driveSlot.append(panel);
+
+  // Held back until the line that explains it, if the script marks one. Hidden
+  // here rather than on the first frame, or the bars show for a moment on load
+  // before the first reading of the scroll hides them — and only if there is
+  // something that will bring them back, so a script that stops naming them
+  // leaves them visible rather than losing them.
+  if (driveLine) driveSlot.style.opacity = '0';
 }
 
 function updateDrives(progress) {
