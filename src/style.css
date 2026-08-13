@@ -180,8 +180,13 @@ h1 {
      exposition sections have to fit between the top of the pin and the moment
      the drives cross — a stretch that is only 22% of this number. The scene is
      slower per pixel as a result, which is the intended trade: the same
-     recording spread over more scrolling. */
-  height: 1200vh;
+     recording spread over more scrolling.
+
+     Raised a third time for the opening demonstration, which now takes the
+     first `DEMO_UNTIL` of the pin. The extra 300 is close to what that costs, so
+     the recording still plays out over about eleven windowfuls — the
+     demonstration is added to the page rather than taken out of the clip. */
+  height: 1500vh;
 }
 
 /* Full bleed: the scene is the page here, edge to edge, with the text laid over

@@ -643,8 +643,13 @@ Vec = viewer.camera.position.constructor;
  *
  * This is the second section's own position, so the demonstration is over
  * exactly as the reader arrives at the next headline.
+ *
+ * A fifth of the pin, which at 1500vh is about three windowfuls — one per move.
+ * It was a third of that to begin with and every move went past in a flick of
+ * the wheel; the pin was lengthened to match rather than the clip shortened, so
+ * the recording still gets the same eleven windowfuls it had.
  */
-const DEMO_UNTIL = 0.073;
+const DEMO_UNTIL = 0.22;
 
 /** Pin progress → where the recording's head belongs. Parked at its first tick
  *  for the whole demonstration, then the rest of the pin plays the whole clip. */
@@ -727,6 +732,17 @@ const lastInto = (state) => {
 };
 
 /**
+ * Where the drives cross, in the pin. The two hand-placed sections between the
+ * end of the demonstration and it divide that stretch evenly, so this is worked
+ * out rather than typed — the moment moves with the clip, and they should move
+ * with it.
+ */
+const searchingAt = (() => {
+  const tick = firstInto(SEARCHING);
+  return tick === null ? null : clamp01(progressOfTick(tick));
+})();
+
+/**
  * The script, in order: what the reader stops on and what it says there.
  *
  * Each line names the moment it describes rather than a position, so the whole
@@ -745,11 +761,21 @@ const SCRIPT = [
     // which is where the next section sits.
     at: 0,
     headline: 'The sculpture',
+    // This section is the demonstration's caption, so it does not arrive all at
+    // once: a block with an `at` waits until that point in the demonstration and
+    // then slides into place, and the reader is told what to watch for as the
+    // piece does it. The figure is the same clock the moves are on — a fraction
+    // of the demonstration, not of the pin — and each is set a little ahead of
+    // its move so the words are there to be read before anything happens.
+    //
+    // No party voice here. The demonstration is the mechanism, and the metaphor
+    // starts in the section under it.
     blocks: [
       { voice: 'model', text: 'Colloquy is a kinetic sculpture, a large mobile hanging from the ceiling, consisting of five figures.' },
       { voice: 'model', text: 'Pask labeled three figures “female” and two “male”. His language and allusions are dated and sexist.' },
-      { voice: 'party', text: 'The sculpture can represent people interacting at a party. Their conversations have a beginning, a middle, and an end.' },
-      { voice: 'model', text: 'At any moment, each mobile is in one of three possible states: resting, searching, or conversing.' },
+      { voice: 'model', at: 0.02, text: 'The three females rotate on their own axes.' },
+      { voice: 'model', at: 0.34, text: 'The two males spin the bar they hang from.' },
+      { voice: 'model', at: 0.66, text: 'And each male turns on his own axis.' },
     ],
   },
   {
@@ -765,6 +791,7 @@ const SCRIPT = [
     headline: 'The sculpture represents a party',
     blocks: [
       { voice: 'party', text: 'A party has people. Guests show up, to mingle, eat, drink, and socialize.' },
+      { voice: 'party', text: 'The sculpture can represent people interacting at a party. Their conversations have a beginning, a middle, and an end.' },
       { voice: 'model', text: 'Five agents hang from the mobile. Each can move independently, communicate, and affect the others.' },
       { voice: 'party', text: 'Guests arrive with interests, and a growing desire to share them.' },
       { voice: 'model', text: 'Every agent has two drive states — Orange and Puce — which grow over time.' },
@@ -773,11 +800,17 @@ const SCRIPT = [
   {
     // Also placed by hand: the clip opens with everything already at rest, so
     // there is no event marking the start — the moment this describes is the
-    // stretch before the drives cross, not a transition into it.
-    at: 0.146,
+    // stretch before the drives cross, not a transition into it. Halfway between
+    // the end of the demonstration and that crossing, so the two sections in
+    // between get an even share of it.
+    at: searchingAt === null ? DEMO_UNTIL + 0.09 : (DEMO_UNTIL + searchingAt) / 2,
     soft: true,
     headline: 'Starting up',
     blocks: [
+      // Moved down out of the opening section, which is the demonstration's
+      // caption now and has room only for what is moving on screen. It reads
+      // better here anyway: it is what the line under it is the first case of.
+      { voice: 'model', text: 'At any moment, each mobile is in one of three possible states: resting, searching, or conversing.' },
       { voice: 'model', text: 'When the model starts up, all figures are resting, and their drives begin to climb.' },
       { voice: 'party', text: 'Guests arrive, and the room starts to fill.' },
     ],
@@ -1495,10 +1528,10 @@ const settle = (s) => s * s * s * (s * (s * 6 - 15) + 10);
 const DEMO_MOVES = {
   // Staggered a little: three shells turning in lockstep read as one mechanism
   // rather than as three bodies each doing this for itself.
-  females: { from: 0.04, span: 0.26, stagger: 0.03, swing: 30 },
+  females: { from: 0.04, span: 0.24, stagger: 0.03, swing: 30 },
   // Everything mounted on the bar goes round together — both males with it.
-  bar: { from: 0.4, span: 0.3, stagger: 0, turn: 360 },
-  males: { from: 0.74, span: 0.21, stagger: 0.03, swing: 55 },
+  bar: { from: 0.38, span: 0.26, stagger: 0, turn: 360 },
+  males: { from: 0.68, span: 0.21, stagger: 0.03, swing: 55 },
 };
 
 // Every joint this shows turns about world Z — the clip's scene graph says
@@ -1720,6 +1753,19 @@ function writeBody(el, text) {
   if (last < text.length) el.append(text.slice(last));
 }
 
+/**
+ * The lines that wait for their moment in the demonstration, with the moment.
+ *
+ * They keep their place in the layout from the start — the section is measured
+ * once and has to stay the height it was measured at, and a line that arrived by
+ * *growing* the box would shift everything under it and pull the section off the
+ * scroll position it is anchored to. So the space is held and the line comes up
+ * into it: it is the ink that arrives, not the room for it.
+ */
+const timedLines = [];
+/** How much of the demonstration a line takes to come up. */
+const LINE_RISE = 0.05;
+
 for (const beat of beats) {
   const block = document.createElement('section');
   block.className = 'beat';
@@ -1742,6 +1788,12 @@ for (const beat of beats) {
     // The stylesheet is the only place that says which is which colour.
     line.dataset.voice = body.voice;
     writeBody(line, body.text);
+    // Hidden from the start rather than from the first frame, or every one of
+    // them shows for a moment on load before the first scroll reading hides it.
+    if (body.at !== undefined) {
+      line.style.opacity = '0';
+      timedLines.push({ el: line, at: body.at, shown: -1 });
+    }
     inner.append(line);
   }
 
@@ -1749,6 +1801,26 @@ for (const beat of beats) {
   beatsEl.append(block);
   beat.el = block;
   beat.inner = inner;
+}
+
+/**
+ * Bring up the lines that are waiting on the demonstration.
+ *
+ * Written from the scroll rather than run as a CSS transition: the reader is
+ * scrubbing this, so a line has to be able to go back down as readily as it came
+ * up, and a transition would be chasing the scroll rather than following it.
+ * Only on a real change, because this runs on every frame the pin is on screen.
+ */
+function revealLines(pin) {
+  const u = clamp01(pin / DEMO_UNTIL);
+  for (const line of timedLines) {
+    const t = clamp01((u - line.at) / LINE_RISE);
+    const shown = t * t * (3 - 2 * t);
+    if (Math.abs(shown - line.shown) < 0.004) continue;
+    line.shown = shown;
+    line.el.style.opacity = shown.toFixed(3);
+    line.el.style.transform = shown === 1 ? '' : `translateY(${((1 - shown) * 22).toFixed(1)}px)`;
+  }
 }
 
 // The fades a section arrives out of and leaves into, held at the two ends of the
@@ -2145,9 +2217,11 @@ function frame() {
     // the opening demonstration and plays out over what is left of the pin.
     const head = clipProgress(progress);
     player.seekFraction(head);
-    // The captions need nothing here: they are laid down the page and the scroll
-    // moves them, like everything else on it.
+    // The captions are laid down the page and the scroll moves them, like
+    // everything else on it — except the opening section's, which come up one at
+    // a time as the demonstration reaches them.
     updateDrives(head);
+    revealLines(progress);
   }
 
   if (performance.now() - lastDrawAt > 8) {
