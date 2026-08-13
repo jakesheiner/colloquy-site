@@ -2262,12 +2262,24 @@ updateDrives(0);
  * Not `scrollTo({ behavior: 'smooth' })`. Its duration is the browser's to
  * choose, and for the distances here — a section is two to eight windowfuls — it
  * covers the ground in a few hundred milliseconds, which is the jump this is
- * trying not to be. So the pace is set here: a steady speed, floored so a short
- * step is not instant and capped so the longest is not a journey.
+ * trying not to be. So the pace is set here.
+ *
+ * Two paces, though, not one. Everywhere else the scroll is scrubbing a
+ * recording, and passing over it quickly is only playing it fast. The
+ * demonstration is different: it is three moves with a shape of their own, and
+ * the first step on the page crosses all three of them. At the speed the rest
+ * runs at they went by in under two seconds, which is the whole demonstration
+ * gone in the time it takes to notice a button has been pressed.
+ *
+ * So a step is timed by *where* it travels, not only how far: the part of it
+ * inside the demonstration is paced to be watched, the rest to get there.
  */
 const STEP_SPEED = 1.8; // px per millisecond
+const DEMO_STEP_SPEED = 0.6; // and slower across the demonstration
 const STEP_SHORTEST = 700;
-const STEP_LONGEST = 3500;
+// Loose enough that the demonstration is never the thing being capped — capping
+// it would quietly put the speed back up, which is the fault this is fixing.
+const STEP_LONGEST = 6500;
 
 const stillMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -2318,7 +2330,19 @@ function stepTo(beat) {
     window.scrollTo(0, to);
     return;
   }
-  const ms = Math.min(STEP_LONGEST, Math.max(STEP_SHORTEST, Math.abs(distance) / STEP_SPEED));
+  // How much of the journey is spent inside the demonstration. Worked out as an
+  // overlap rather than as a special case for the first step, so a step that
+  // only clips the end of it is paced for the part that needs it and no more.
+  const lo = Math.min(from, to);
+  const hi = Math.max(from, to);
+  const demoTop = pinSection.offsetTop;
+  const demoFoot = demoTop + DEMO_UNTIL * travelPx;
+  const shown = Math.max(0, Math.min(hi, demoFoot) - Math.max(lo, demoTop));
+
+  const ms = Math.min(
+    STEP_LONGEST,
+    Math.max(STEP_SHORTEST, shown / DEMO_STEP_SPEED + (Math.abs(distance) - shown) / STEP_SPEED)
+  );
   step = { from, distance, at: performance.now(), ms };
 }
 
