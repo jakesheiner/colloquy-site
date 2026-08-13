@@ -479,6 +479,9 @@ function paintBodies() {
   if (painted > 0) {
     assignBodiesToUnits();
     addGround();
+    // `bodies` has just been rebuilt, and the opening demonstration's parts are
+    // views onto it.
+    demo = null;
   }
   return painted;
 }
@@ -489,6 +492,14 @@ function paintBodies() {
 // beam sits ~23in from either male and ends up tagged null.
 const bodies = [];
 const UNIT_RADIUS = 10;
+
+// The opening demonstration's parts, which are views onto `bodies` — see the
+// demonstration block further down, where this is built and used.
+//
+// Declared up here rather than there because `paintBodies` clears it and is
+// called once during module evaluation, well before that block: a `let` further
+// down the file is still in its temporal dead zone at that point.
+let demo = null;
 
 /** World position of each unit, averaged over its own scene-graph nodes. */
 function unitAnchors() {
@@ -621,8 +632,30 @@ const { playback } = player.getStatus();
 viewer = player.viewer;
 Vec = viewer.camera.position.constructor;
 
+/**
+ * How much of the pin the opening demonstration takes before the clip starts.
+ *
+ * The first section describes the sculpture rather than reporting anything the
+ * recording does, and the recording has nothing to show under it: it opens
+ * mid-encounter, with the pair already engaged and everything else hanging
+ * still. So that stretch is a demonstration of the mechanism instead — see the
+ * demonstration block below — and the recording begins where it ends.
+ *
+ * This is the second section's own position, so the demonstration is over
+ * exactly as the reader arrives at the next headline.
+ */
+const DEMO_UNTIL = 0.073;
+
+/** Pin progress → where the recording's head belongs. Parked at its first tick
+ *  for the whole demonstration, then the rest of the pin plays the whole clip. */
+const clipProgress = (pin) => clamp01((pin - DEMO_UNTIL) / (1 - DEMO_UNTIL));
+
+/** And back: where in the pin a tick of the recording falls. Everything hung off
+ *  a moment in the clip — the script's stops, and the camera moves between them
+ *  — is placed through here, so the demonstration moves them all together. */
 const progressOfTick = (tick) =>
-  (tick - playback.tickStart) / (playback.tickEnd - playback.tickStart);
+  DEMO_UNTIL +
+  (1 - DEMO_UNTIL) * ((tick - playback.tickStart) / (playback.tickEnd - playback.tickStart));
 
 // The three behavioural states the script and the camera timing are hung off.
 // Declared above `stateChanges` because that reader now folds events onto them.
@@ -706,7 +739,11 @@ const lastInto = (state) => {
  */
 const SCRIPT = [
   {
-    tick: () => playback.tickStart,
+    // The demonstration, which is not a moment in the recording — the clip is
+    // parked at its first tick underneath this whole section while the piece
+    // shows what it can do. It runs from the top of the pin to `DEMO_UNTIL`,
+    // which is where the next section sits.
+    at: 0,
     headline: 'The sculpture',
     blocks: [
       { voice: 'model', text: 'Colloquy is a kinetic sculpture, a large mobile hanging from the ceiling, consisting of five figures.' },
@@ -720,7 +757,10 @@ const SCRIPT = [
     // describing anything the clip does, so it is placed by hand. It and
     // `Starting up` divide the long stretch before the drives cross their
     // threshold into even thirds with the opening section.
-    at: 0.073,
+    //
+    // It is also where the recording starts: the demonstration under the
+    // opening section runs up to this line and hands over on it.
+    at: DEMO_UNTIL,
     soft: true,
     headline: 'The sculpture represents a party',
     blocks: [
@@ -1404,6 +1444,214 @@ function applyFraming() {
   if (viewer.controls) viewer.controls.target.copy(_aim);
 }
 
+// --- the opening demonstration -----------------------------------------------
+
+/**
+ * What the piece can do, shown once through before the recording starts.
+ *
+ * The clip opens mid-encounter — the pair already engaged, nothing else moving —
+ * so under the opening section, which describes the sculpture rather than
+ * reporting anything the clip does, there was nothing to watch. This is what
+ * runs there instead: each way the piece moves, one at a time. The females
+ * rotate on their axes, then the males spin the bar, then the males turn on
+ * their own axes.
+ *
+ * It is a *pose*, not a second playback. The clip stays parked at its first tick
+ * for the whole demonstration and this turns the bodies on top of it, so every
+ * move is a rotation away from that first tick's pose and back to it. What the
+ * reader is looking at when the demonstration ends is therefore exactly the
+ * frame the recording starts from — there is nothing to line up by hand, and no
+ * way for the two to drift apart if the clip is swapped.
+ *
+ * Applied in the render hook and undone immediately after the draw. The player
+ * poses the bodies on its own schedule rather than this page's, so the moment
+ * before the draw is the only one where the answer is certainly ours — the same
+ * reason the camera is applied there. Undoing it afterwards leaves the scene
+ * exactly as the player expects to find it, so nothing here can compound frame
+ * over frame or leak into the recording.
+ */
+
+const DEG = Math.PI / 180;
+
+/** Eased at both ends, so a move starts and stops rather than snapping. */
+const settle = (s) => s * s * s * (s * (s * 6 - 15) + 10);
+
+/**
+ * The moves, in the order they are shown, positioned as fractions of the
+ * demonstration.
+ *
+ * `swing` is a whole cycle out and back, which shows the full range and returns
+ * the body to where it started; `turn` is one complete revolution, which also
+ * ends where it started. That is the property the whole thing rests on: the pose
+ * at the end of a move is the pose at the start of it, which is what lets them
+ * be shown one at a time and lets the clip take over cleanly at the end.
+ *
+ * The gaps between them are deliberate. Each move is over before the next
+ * begins, so what is being demonstrated is never ambiguous.
+ *
+ * Angles in degrees, and roughly what the piece actually does: the females run
+ * to ±30 and the males to ±60 (their `motionProfile` in the clip's scene graph).
+ */
+const DEMO_MOVES = {
+  // Staggered a little: three shells turning in lockstep read as one mechanism
+  // rather than as three bodies each doing this for itself.
+  females: { from: 0.04, span: 0.26, stagger: 0.03, swing: 30 },
+  // Everything mounted on the bar goes round together — both males with it.
+  bar: { from: 0.4, span: 0.3, stagger: 0, turn: 360 },
+  males: { from: 0.74, span: 0.21, stagger: 0.03, swing: 55 },
+};
+
+// Every joint this shows turns about world Z — the clip's scene graph says
+// `axis: "z"` for all of them, and nothing above them tilts. The drawn bodies
+// hang under two identity groups, so their own coordinates are world ones and a
+// turn is arithmetic on `position` with the same turn premultiplied onto
+// `quaternion`.
+const DEMO_AXIS = new Vec(0, 0, 1);
+const _demoSpin = new (viewer.camera.quaternion.constructor)();
+
+/**
+ * What each move turns, and the axis it turns about.
+ *
+ * These come from two different places, and they have to. The scene the player
+ * builds is in two halves: a **hidden** tree of the graph's nodes, which is where
+ * the joints are and therefore where each axis is, and the **drawn** bodies,
+ * which are the loaded meshes — with no node-named ancestor at all, which is why
+ * `assignBodiesToUnits` has to match them to units by proximity in the first
+ * place. So a move takes its axis from the node tree and its members from
+ * `bodies`, and turns a *set* of objects about a world axis rather than a pivot
+ * with the rest hanging off it. There is no hierarchy here to hang anything off.
+ *
+ * Built lazily into `demo` (declared up beside `bodies`, and thrown away
+ * whenever `paintBodies` claims new geometry, because `bodies` is rebuilt then).
+ */
+function buildDemo() {
+  if (bodies.length === 0) return null;
+
+  // The hidden node tree. Every id in it appears twice — the second a childless
+  // marker parked at the origin, which would report the axis as the middle of
+  // the room.
+  const axisOf = (id) => {
+    let found = null;
+    viewer.scene.traverse((object) => {
+      if (found) return;
+      if (object.userData?.entry?.node?.id === id && object.children.length > 0) found = object;
+    });
+    return found;
+  };
+
+  const partsFor = (side) =>
+    [...new Set(bodies.map((body) => body.unit).filter((unit) => unit?.startsWith(side)))]
+      .sort()
+      .map((unit) => ({
+        axis: axisOf(`${unit}__horizontal_control`),
+        members: bodies.filter((body) => body.unit === unit).map((body) => body.group),
+      }))
+      .filter((part) => part.axis && part.members.length > 0);
+
+  const females = partsFor('female');
+  const males = partsFor('male');
+  const barAxis = axisOf('beam_horizontal_control');
+  // Everything the bar carries: itself, and both males with it. The beam is the
+  // one drawn body `assignBodiesToUnits` tags with no unit — it hangs ~23in from
+  // either male — so it is picked out by what it is rather than by where it is.
+  const bar = {
+    axis: barAxis,
+    members: [
+      ...bodies.filter((body) => body.part?.name === 'beam').map((body) => body.group),
+      ...males.flatMap((male) => male.members),
+    ],
+  };
+  if (females.length === 0 && (!barAxis || bar.members.length === 0)) return null;
+
+  // One slot per object, allocated once, to hold where the clip had it while the
+  // demonstration is standing on top of it. A male is in two moves — he turns
+  // with the bar and on his own axis — so this is the unique set.
+  const touched = [...new Set([...females, ...males, bar].flatMap((part) => part.members))].map(
+    (object) => ({
+      object,
+      position: object.position.clone(),
+      quaternion: object.quaternion.clone(),
+    })
+  );
+  return { females, males, bar, touched };
+}
+
+/** How far through its own move a body is, as an angle away from the clip's pose. */
+function demoAngle(move, index, u) {
+  const s = (u - (move.from + move.stagger * index)) / move.span;
+  if (s <= 0 || s >= 1) return 0;
+  const eased = settle(s);
+  return move.turn !== undefined
+    ? eased * move.turn * DEG
+    : Math.sin(2 * Math.PI * eased) * move.swing * DEG;
+}
+
+/** Turn a set of bodies about a vertical axis through `(x, y)`. */
+function turnAbout(members, x, y, angle) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  _demoSpin.setFromAxisAngle(DEMO_AXIS, angle);
+  for (const object of members) {
+    const dx = object.position.x - x;
+    const dy = object.position.y - y;
+    object.position.x = x + dx * cos - dy * sin;
+    object.position.y = y + dx * sin + dy * cos;
+    object.quaternion.premultiply(_demoSpin);
+  }
+}
+
+/** Pose the piece for the demonstration. False if there is nothing to do. */
+function setDemoPose(pin) {
+  if (pin >= DEMO_UNTIL) return false;
+  if (!demo) demo = buildDemo();
+  if (!demo) return false;
+
+  // Where the clip left everything, so the draw can be undone afterwards.
+  for (const held of demo.touched) {
+    held.position.copy(held.object.position);
+    held.quaternion.copy(held.object.quaternion);
+  }
+
+  const u = clamp01(pin / DEMO_UNTIL);
+  const [barMove, maleMove] = [DEMO_MOVES.bar, DEMO_MOVES.males];
+
+  const bar = demo.bar.axis ? demoAngle(barMove, 0, u) : 0;
+  const barX = demo.bar.axis ? demo.bar.axis.position.x : 0;
+  const barY = demo.bar.axis ? demo.bar.axis.position.y : 0;
+  if (bar !== 0) turnAbout(demo.bar.members, barX, barY, bar);
+
+  demo.males.forEach((male, index) => {
+    const angle = demoAngle(maleMove, index, u);
+    if (angle === 0) return;
+    // His axis is on the bar. The node tree it is read from is the clip's, and
+    // the bar's turn above is this page's, so it has to be carried over by hand.
+    let { x, y } = male.axis.position;
+    if (bar !== 0) {
+      const cos = Math.cos(bar);
+      const sin = Math.sin(bar);
+      const dx = x - barX;
+      const dy = y - barY;
+      x = barX + dx * cos - dy * sin;
+      y = barY + dx * sin + dy * cos;
+    }
+    turnAbout(male.members, x, y, angle);
+  });
+
+  demo.females.forEach((female, index) => {
+    const angle = demoAngle(DEMO_MOVES.females, index, u);
+    if (angle !== 0) turnAbout(female.members, female.axis.position.x, female.axis.position.y, angle);
+  });
+  return true;
+}
+
+/** Put the clip's own pose back, the instant the draw is over. */
+function clearDemoPose() {
+  for (const held of demo.touched) {
+    held.object.position.copy(held.position);
+    held.object.quaternion.copy(held.quaternion);
+  }
+}
+
 // The player rewrites `camera.aspect` to a fixed value on every frame and never
 // tracks its container, which both stretches the shot and undoes any fit
 // measured against the real one. Re-applying the framing immediately before the
@@ -1413,7 +1661,12 @@ const drawScene = viewer.renderer.render.bind(viewer.renderer);
 viewer.renderer.render = (scene, camera) => {
   lastDrawAt = performance.now();
   if (camera === viewer.camera) applyFraming();
+  // After the framing, not before: `applyFraming` may bake the shots, and those
+  // are solved against the piece as the recording has it. A bake caught during
+  // the demonstration must not frame the demonstration's pose.
+  const posed = camera === viewer.camera && setDemoPose(pinProgress());
   drawScene(scene, camera);
+  if (posed) clearDemoPose();
 };
 
 // --- the text track ----------------------------------------------------------
@@ -1888,10 +2141,13 @@ function frame() {
   const progress = pinProgress();
   if (progress !== lastProgress) {
     lastProgress = progress;
-    player.seekFraction(progress);
+    // Not the pin's progress: the recording is parked at its first tick through
+    // the opening demonstration and plays out over what is left of the pin.
+    const head = clipProgress(progress);
+    player.seekFraction(head);
     // The captions need nothing here: they are laid down the page and the scroll
     // moves them, like everything else on it.
-    updateDrives(progress);
+    updateDrives(head);
   }
 
   if (performance.now() - lastDrawAt > 8) {
