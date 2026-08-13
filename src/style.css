@@ -192,8 +192,15 @@ h1 {
      only holds still until the next one reaches it, so the room it has to stage
      anything in is its stretch of scroll less the height of its own text — and
      `The sculpture represents a party`, five blurbs deep and sitting in one of
-     the shortest stretches in the script, is the one that needs this. */
-  height: 1700vh;
+     the shortest stretches in the script, is the one that needs this.
+
+     Raised a fifth time because the blurbs still arrived too quickly: the
+     tightest were a fifth of a windowful apart, two notches of a wheel. They are
+     about half a windowful apart now. It takes this much because the room a
+     section has is what is left *after* its own text — a section 40% filled by
+     its words gives back less than half of what it is given, so the pin has to
+     grow by much more than the pacing does. */
+  height: 2400vh;
 }
 
 /* Full bleed: the scene is the page here, edge to edge, with the text laid over

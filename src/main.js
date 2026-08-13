@@ -644,12 +644,17 @@ Vec = viewer.camera.position.constructor;
  * This is the second section's own position, so the demonstration is over
  * exactly as the reader arrives at the next headline.
  *
- * A little under a fifth of the pin, which at 1700vh is about three windowfuls —
- * one per move. It was a third of that to begin with and every move went past in
- * a flick of the wheel; the pin was lengthened to match rather than the clip
- * shortened, so the recording keeps the room it had.
+ * A seventh of the pin, which at 2400vh is about three windowfuls — one per
+ * move. It was a third of that to begin with and every move went past in a flick
+ * of the wheel; the pin was lengthened to match rather than the clip shortened,
+ * so the recording keeps the room it had.
+ *
+ * The *share* has come down twice while the pin grew, each time to hold the
+ * moves at about a windowful each. This is a fraction of a number that keeps
+ * moving, so it is the pixels either side of it that are worth checking, not
+ * this.
  */
-const DEMO_UNTIL = 0.18;
+const DEMO_UNTIL = 0.14;
 
 /** Pin progress → where the recording's head belongs. Parked at its first tick
  *  for the whole demonstration, then the rest of the pin plays the whole clip. */
