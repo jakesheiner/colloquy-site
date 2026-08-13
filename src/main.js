@@ -483,9 +483,16 @@ function paintBodies() {
   if (painted > 0) {
     assignBodiesToUnits();
     addGround();
-    // `bodies` has just been rebuilt, and the opening demonstration's parts are
-    // views onto it.
+    // `bodies` has just been rebuilt, and two things are measured off it.
+    //
+    // The shots especially: `bakeShots` solves them against whatever geometry is
+    // in the scene when it runs, and the meshes arrive over several frames. With
+    // a title page in front of the stage that never showed, because nothing was
+    // drawn until the reader had scrolled past it and everything had long since
+    // landed. The stage is the first thing on the page now, so the first bake
+    // can catch two bodies out of five and frame the wide shot around them.
     demo = null;
+    baked = false;
   }
   return painted;
 }
@@ -497,13 +504,16 @@ function paintBodies() {
 const bodies = [];
 const UNIT_RADIUS = 10;
 
-// The opening demonstration's parts, which are views onto `bodies` — see the
-// demonstration block further down, where this is built and used.
+// Two things `paintBodies` invalidates when it claims new geometry, both of them
+// answers measured off `bodies`: the demonstration's parts, and the camera's
+// baked shots.
 //
-// Declared up here rather than there because `paintBodies` clears it and is
-// called once during module evaluation, well before that block: a `let` further
-// down the file is still in its temporal dead zone at that point.
+// Declared up here rather than beside the code that owns them because
+// `paintBodies` is called once during module evaluation, well before either of
+// those blocks — a `let` further down the file is still in its temporal dead
+// zone at that point.
 let demo = null;
+let baked = false;
 
 /** World position of each unit, averaged over its own scene-graph nodes. */
 function unitAnchors() {
@@ -1212,6 +1222,20 @@ function safeArea() {
     area.x1 = Math.max(Math.min(area.x1, edge), -0.2);
   }
 
+  // The headline is held across the top of it. A rect rather than a written-in
+  // offset like the readout's below: it is `position: fixed`, so its rect is
+  // already a position in the window and does not move with the scroll — which
+  // is the property that matters when the shots are baked.
+  //
+  // The band runs the full width even though the words only reach across the
+  // left of it. `safeArea` is a rectangle, and the alternative — an L-shaped
+  // region — is not something the fit could use.
+  const head = document.querySelector('.site-head');
+  if (head && head.offsetHeight > 0) {
+    const foot = head.getBoundingClientRect().bottom;
+    area.y1 = Math.max(Math.min(area.y1, ndcY(foot) - SAFE_GUTTER * 2), -0.2);
+  }
+
   // The readout lies across the foot of it, so keep the piece above that too.
   // Its top edge is written into the layout by `placeBeats()`, which is the one
   // place that measures it.
@@ -1369,7 +1393,8 @@ const solvedOf = (index) => solved[Math.min(index, solved.length - 1)];
 
 const _axis = [0, 0, 0];
 
-let baked = false;
+// `baked` lives up beside `bodies` — `paintBodies` clears it, and runs before
+// this block exists.
 let baking = false;
 let bakedWidth = 0;
 let bakedHeight = 0;

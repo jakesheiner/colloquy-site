@@ -13,41 +13,20 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <main>
-      <section class="panel intro" id="intro">
-        <div class="panel-content">
-          <p class="eyebrow">An Explainer</p>
-          <h1>The Colloquy of Mobiles</h1>
-          <p class="lede">
-            Five bodies hang from a rack. Three of them — the females — turn
-            slowly on their armatures, each carrying a mirror and a hunger for
-            light. Two more — the males — ride a rotating beam above the plinth,
-            sweeping the room with a lamp, looking for something to answer them.
-          </p>
-          <p class="lede">
-            Neither can satisfy itself alone. When a male's beam finds a
-            female's mirror and the reflection comes back, the two lock on and
-            trade signals until both are spent. Then they drift apart and begin
-            again.
-          </p>
-          <p class="lede">
-            What follows is not an animation of that idea. It is a recording of
-            the simulation itself — two minutes of it, unedited, every tick a
-            complete state of every body — played back under your scroll.
-          </p>
-          <p class="lede footnote">
-            It runs a whole cycle. The five begin spent, then fall to searching,
-            and for most of the scroll nothing finds anything. Two thirds of the
-            way down Female A and Male I catch each other and hold — and then
-            she lets go, he does, and all five go back to hunting.
-          </p>
-          <div class="scroll-cue">
-            <span>Scroll</span>
-            <div class="scroll-cue-line"></div>
-          </div>
-        </div>
-      </section>
+    <!--
+      The site's one headline, held over everything for the whole page. There is
+      no title page any more: the piece is the page, from the first pixel, and
+      this is what says what is being looked at.
 
+      Outside `main`, and fixed rather than in the flow, because it belongs to
+      the site and not to the section under it. `safeArea()` in main.js keeps the
+      camera's subject out from under it, the same as it does for the readout.
+    -->
+    <header class="site-head">
+      <h1>The Colloquy of Mobiles</h1>
+    </header>
+
+    <main>
       <section class="pin-section" id="pin-section">
         <!--
           Full bleed: the scene is the page here, edge to edge, with the text

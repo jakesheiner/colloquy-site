@@ -51,119 +51,52 @@ body {
   background: var(--bg);
 }
 
-/* The scroll is the reader's. There was a scroll-snap rig here, and a hand-rolled
-   pager in `src/main.js` on top of it, so every gesture landed on exactly one
-   moment and the page could not rest between them. Both are gone: the captions
-   are laid down a track now and reading them *is* the scrolling, so being stopped
-   at each one fought the thing it was meant to serve. */
-.intro {
-  position: relative;
-}
-
 body {
   font: 400 20px/1.5 var(--condensed);
 }
 
+/* The scroll is the reader's. There was a scroll-snap rig here, and a hand-rolled
+   pager in `src/main.js` on top of it, so every gesture landed on exactly one
+   moment and the page could not rest between them. Both are gone: the captions
+   are laid down a track now and reading them *is* the scrolling, so being stopped
+   at each one fought the thing it was meant to serve. The arrows at the foot of
+   the panel are what is left of stepping, and they are a step the reader asks
+   for rather than one the page imposes. */
 main {
   overflow-x: clip;
 }
 
 /* ---------------------------------------------------------------
-   Text panel (intro) — the only one; the stage ends the page
+   The site's headline, held over everything
 ------------------------------------------------------------------ */
-.panel {
-  min-height: 100svh;
-  display: flex;
-  align-items: center;
-  padding: 8vh 8vw;
+/* There is no title page. The piece is the page from the first pixel, and this
+   is the only thing that says what is being looked at — so it is fixed, not
+   scrolled away from.
+
+   Not a surface, just ink: the scene behind it is white wherever the piece is
+   not, and `safeArea()` keeps the shot's subject from passing under it, so it
+   needs no panel of its own to stay legible. */
+.site-head {
+  position: fixed;
+  top: clamp(14px, 3vh, 32px);
+  /* Centred on the window, not on the scene. The text column is well below it
+     and the piece is kept out from under it, so the whole width is its to sit
+     in — and centred on anything narrower would read as off-centre. */
+  left: 0;
+  right: 0;
+  padding: 0 clamp(16px, 4vw, 56px);
+  text-align: center;
+  /* Above the panel, the readout and the arrows. Nothing should cover this. */
+  z-index: 6;
+  /* Ink, not a target — the scene is underneath it. */
+  pointer-events: none;
 }
 
-.panel-content {
-  max-width: 640px;
-  margin-right: auto;
-  position: relative;
-  z-index: 1;
-}
-
-/* Hero — the archival photo of the installation bleeds in from the
-   right, held under a white scrim that stays near-opaque behind the
-   left-hand text column so the condensed ink keeps its legibility. */
-.panel.intro {
-  background-image: linear-gradient(
-      100deg,
-      rgba(255, 255, 255, 0.97) 0%,
-      rgba(255, 255, 255, 0.93) 32%,
-      rgba(255, 255, 255, 0.62) 64%,
-      rgba(255, 255, 255, 0.42) 100%
-    ),
-    url('../images/colloquy hero.webp');
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
-}
-
-.eyebrow {
-  font: 500 15px/1 var(--condensed);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--mute);
-  margin: 0 0 18px;
-}
-
-h1 {
-  font-family: var(--condensed);
-  font-weight: 600;
-  font-size: clamp(48px, 7vw, 84px);
-  line-height: 0.98;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+.site-head h1 {
+  margin: 0;
+  font: 600 clamp(23px, 2.5vw, 40px) / 1 var(--condensed);
+  letter-spacing: 0.005em;
   color: var(--ink);
-  margin: 0 0 28px;
-}
-
-.lede {
-  font-weight: 400;
-  font-size: 19px;
-  color: var(--mute);
-  margin: 0 0 18px;
-  max-width: 54ch;
-}
-
-/* The provenance note — present and readable, but not competing with the lede. */
-.lede.footnote {
-  font-size: 16px;
-  padding-left: 14px;
-  border-left: 2px solid var(--line);
-  color: var(--mute);
-  opacity: 0.9;
-}
-
-.scroll-cue {
-  margin-top: 10vh;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font: 500 13px/1 var(--condensed);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--mute);
-}
-
-.scroll-cue-line {
-  width: 1px;
-  height: 44px;
-  background: linear-gradient(var(--ink), transparent);
-  animation: scroll-pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes scroll-pulse {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 /* ---------------------------------------------------------------
@@ -795,29 +728,7 @@ h1 {
 
 }
 
-@media (max-width: 720px) {
-  .panel {
-    padding: 8vh 6vw;
-  }
-  /* Narrow: text runs full-width, so scrim the whole frame and let the
-     photo read as a faint wash behind, heaviest at the top by the title. */
-  .panel.intro {
-    background-image: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.95) 0%,
-        rgba(255, 255, 255, 0.88) 45%,
-        rgba(255, 255, 255, 0.78) 100%
-      ),
-      url('../images/colloquy hero.webp');
-    background-position: center, center;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .scroll-cue-line {
-    animation: none;
-    opacity: 0.6;
-  }
   .beat,
   .beat-stack,
   .pin-text::before {
