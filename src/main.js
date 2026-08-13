@@ -644,12 +644,12 @@ Vec = viewer.camera.position.constructor;
  * This is the second section's own position, so the demonstration is over
  * exactly as the reader arrives at the next headline.
  *
- * A fifth of the pin, which at 1500vh is about three windowfuls — one per move.
- * It was a third of that to begin with and every move went past in a flick of
- * the wheel; the pin was lengthened to match rather than the clip shortened, so
- * the recording still gets the same eleven windowfuls it had.
+ * A little under a fifth of the pin, which at 1700vh is about three windowfuls —
+ * one per move. It was a third of that to begin with and every move went past in
+ * a flick of the wheel; the pin was lengthened to match rather than the clip
+ * shortened, so the recording keeps the room it had.
  */
-const DEMO_UNTIL = 0.22;
+const DEMO_UNTIL = 0.18;
 
 /** Pin progress → where the recording's head belongs. Parked at its first tick
  *  for the whole demonstration, then the rest of the pin plays the whole clip. */
@@ -800,10 +800,14 @@ const SCRIPT = [
   {
     // Also placed by hand: the clip opens with everything already at rest, so
     // there is no event marking the start — the moment this describes is the
-    // stretch before the drives cross, not a transition into it. Halfway between
-    // the end of the demonstration and that crossing, so the two sections in
-    // between get an even share of it.
-    at: searchingAt === null ? DEMO_UNTIL + 0.09 : (DEMO_UNTIL + searchingAt) / 2,
+    // stretch before the drives cross, not a transition into it.
+    //
+    // Placed at two thirds of the way from the end of the demonstration to that
+    // crossing rather than halfway, so the section above it gets the larger
+    // share. It was an even split while both arrived whole; now they bring their
+    // blurbs in one at a time, and that one is five deep against this one's
+    // three.
+    at: searchingAt === null ? DEMO_UNTIL + 0.11 : DEMO_UNTIL + (searchingAt - DEMO_UNTIL) * 0.65,
     soft: true,
     headline: 'Starting up',
     blocks: [
@@ -1754,17 +1758,28 @@ function writeBody(el, text) {
 }
 
 /**
- * The lines that wait for their moment in the demonstration, with the moment.
+ * The lines that wait their turn, with the section they wait inside.
  *
- * They keep their place in the layout from the start — the section is measured
+ * A section arrives one blurb at a time rather than as a wall: the first is there
+ * when the headline lands, and the rest come up as the reader scrolls through the
+ * stretch the section owns — which is the stretch of the recording it describes,
+ * so the words keep step with what is on screen.
+ *
+ * `at` is a fraction of the section's own box. The opening section sets its own,
+ * because they have to land on the demonstration's three moves, and its box *is*
+ * the demonstration — so that is the same clock, not a second one. Everywhere
+ * else they are worked out in `placeBeats`, which is the only place that knows
+ * how much room a section actually has: see `scheduleLines`.
+ *
+ * They keep their place in the layout from the start. The section is measured
  * once and has to stay the height it was measured at, and a line that arrived by
  * *growing* the box would shift everything under it and pull the section off the
  * scroll position it is anchored to. So the space is held and the line comes up
  * into it: it is the ink that arrives, not the room for it.
  */
 const timedLines = [];
-/** How much of the demonstration a line takes to come up. */
-const LINE_RISE = 0.05;
+/** How far the reader scrolls while a line comes up. */
+const LINE_RISE = 130;
 
 for (const beat of beats) {
   const block = document.createElement('section');
@@ -1781,21 +1796,35 @@ for (const beat of beats) {
   headline.textContent = beat.headline;
   inner.append(headline);
 
-  for (const body of beat.blocks) {
+  // A section either times its own blurbs or has them spread across it. Mixing
+  // the two would mean guessing where a hand-placed line leaves off, so a section
+  // that sets even one `at` is taken to have set all the ones it wants.
+  const authored = beat.blocks.some((body) => body.at !== undefined);
+  // The ones the reader waits for. The first blurb is never one of them: it is
+  // the section's opening line and belongs with the headline.
+  const waiting = authored
+    ? beat.blocks.filter((body) => body.at !== undefined).length
+    : beat.blocks.length - 1;
+  let rank = 0;
+
+  beat.blocks.forEach((body, index) => {
     const line = document.createElement('p');
     line.className = 'beat-body';
     // Two voices: what the sculpture is, and what the party it stands for is.
     // The stylesheet is the only place that says which is which colour.
     line.dataset.voice = body.voice;
     writeBody(line, body.text);
-    // Hidden from the start rather than from the first frame, or every one of
-    // them shows for a moment on load before the first scroll reading hides it.
-    if (body.at !== undefined) {
+
+    const timed = authored ? body.at !== undefined : index > 0;
+    if (timed) {
+      rank += 1;
+      // Hidden from the start rather than from the first frame, or every one of
+      // them shows for a moment on load before the first reading hides it.
       line.style.opacity = '0';
-      timedLines.push({ el: line, at: body.at, shown: -1 });
+      timedLines.push({ el: line, beat, at: body.at ?? null, rank, of: waiting, atPx: 0, shown: -1 });
     }
     inner.append(line);
-  }
+  });
 
   block.append(inner);
   beatsEl.append(block);
@@ -1804,7 +1833,50 @@ for (const beat of beats) {
 }
 
 /**
- * Bring up the lines that are waiting on the demonstration.
+ * Work out where in each section its blurbs arrive.
+ *
+ * Called from `placeBeats`, because the answer depends on two things only that
+ * knows: how much scroll a section owns, and how tall its text is.
+ *
+ * The room is not the whole section. A section holds still only until the next
+ * one reaches it — `position: sticky` releases a block when its parent's bottom
+ * edge catches its own, so the stretch it sits still for is its box less its
+ * text. Spreading blurbs over the whole box would have the last ones arriving
+ * into a section already on its way up and out. So they are spread over the part
+ * it is actually sitting still for, and stop short of the end of that, which
+ * leaves the last blurb a moment to be read before the section moves.
+ *
+ * A section whose text more than fills its stretch has no room to stage anything;
+ * everything in it lands at once, which is what it did before any of this.
+ */
+function scheduleLines(offset) {
+  for (const line of timedLines) {
+    const beat = line.beat;
+    const box = parseFloat(beat.el.style.height) || 0;
+    // Where the section comes to rest, in the same measure as the scroll below.
+    beat.restFrom = (parseFloat(beat.el.style.top) || 0) - offset;
+    if (line.at !== null) {
+      line.atPx = line.at * box;
+      continue;
+    }
+    // The stretch the section sits still for, less the distance the last blurb
+    // needs to come up in — that has to be inside it too, or the line finishes
+    // arriving into a section already leaving. What is left over after that is
+    // the moment the last blurb gets to be read in.
+    const rest = Math.max(0, box - beat.inner.offsetHeight);
+    const room = Math.max(0, rest - LINE_RISE) * 0.85;
+    // Capped, rather than simply spread to fill. `Searching` owns a quarter of
+    // the pin because that is how long the recording spends looking, and three
+    // blurbs spread evenly across it leave the reader most of two windowfuls
+    // apart with nothing new to read. Front-loaded and then quiet is the truer
+    // shape: the words are done and the looking carries on.
+    const step = Math.min(room / line.of, window.innerHeight * 0.8);
+    line.atPx = step * line.rank;
+  }
+}
+
+/**
+ * Bring up the lines that are waiting their turn.
  *
  * Written from the scroll rather than run as a CSS transition: the reader is
  * scrubbing this, so a line has to be able to go back down as readily as it came
@@ -1812,9 +1884,9 @@ for (const beat of beats) {
  * Only on a real change, because this runs on every frame the pin is on screen.
  */
 function revealLines(pin) {
-  const u = clamp01(pin / DEMO_UNTIL);
+  const scrolled = pin * travelPx;
   for (const line of timedLines) {
-    const t = clamp01((u - line.at) / LINE_RISE);
+    const t = clamp01((scrolled - line.beat.restFrom - line.atPx) / LINE_RISE);
     const shown = t * t * (3 - 2 * t);
     if (Math.abs(shown - line.shown) < 0.004) continue;
     line.shown = shown;
@@ -1859,6 +1931,11 @@ const HEADLINE_TOP = 0.2;
 // and read by `scrollTrackToPage()` — the second runs every frame, so it is kept
 // here rather than measured again.
 let columnTopPx = 0;
+// The pin's scrollable length, measured by `placeBeats()`. `revealLines` works in
+// pixels down the pin rather than in progress, because the schedule it reads is
+// in pixels: how far a section can be scrolled before it starts to leave is a
+// distance, not a fraction of anything.
+let travelPx = 0;
 // The scroll offset last written, so a frame that changes nothing writes nothing.
 // Declared up here rather than beside `scrollTrackToPage()` below: `placeBeats`
 // runs during module evaluation and sets the offset, and a `let` further down the
@@ -1890,6 +1967,7 @@ let lastTrackScroll = -1;
 function placeBeats() {
   const travel = pinSection.offsetHeight - window.innerHeight;
   if (travel <= 0) return;
+  travelPx = travel;
 
   // The panel's inset from its own edges, taken from the stylesheet rather than
   // repeated here. It sets three things at once, and they have to agree: the
@@ -1991,6 +2069,10 @@ function placeBeats() {
     const until = i + 1 < beats.length ? tops[i + 1] : travel + window.innerHeight;
     beat.el.style.height = `${Math.max(until - tops[i], content).toFixed(1)}px`;
   }
+
+  // Now that every section knows how much scroll it owns and how tall it is,
+  // work out where its blurbs arrive.
+  scheduleLines(offset);
 
   // The panel moved, so the track has to be re-offset now rather than waiting
   // for the next frame — otherwise a resize leaves the text at the old position

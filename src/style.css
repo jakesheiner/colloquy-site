@@ -182,11 +182,18 @@ h1 {
      slower per pixel as a result, which is the intended trade: the same
      recording spread over more scrolling.
 
-     Raised a third time for the opening demonstration, which now takes the
-     first `DEMO_UNTIL` of the pin. The extra 300 is close to what that costs, so
-     the recording still plays out over about eleven windowfuls — the
-     demonstration is added to the page rather than taken out of the clip. */
-  height: 1500vh;
+     Raised a third time for the opening demonstration, which takes the first
+     `DEMO_UNTIL` of the pin, and a fourth time because every section now brings
+     its text in a blurb at a time rather than all at once. Both are the same
+     trade as before: the room is added to the page rather than taken out of the
+     clip, and the scene is slower per pixel for it.
+
+     What sets the figure is the *tightest* section, not the average. A section
+     only holds still until the next one reaches it, so the room it has to stage
+     anything in is its stretch of scroll less the height of its own text — and
+     `The sculpture represents a party`, five blurbs deep and sitting in one of
+     the shortest stretches in the script, is the one that needs this. */
+  height: 1700vh;
 }
 
 /* Full bleed: the scene is the page here, edge to edge, with the text laid over
