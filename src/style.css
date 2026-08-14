@@ -984,8 +984,10 @@ html.pane-open .site-head {
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 
-/* Back is the direction the site is in, not a fixed arrow: About sits to the
-   left of it and History to the right, and the chevron in each says so. */
+/* Back points left on both pages. It was the direction the site actually lies
+   in — right from About, left from History — which is true but reads wrong: a
+   leftward chevron beside the word "back" is a thing people know before they
+   read it, and spelling out the geometry costs more than it says. */
 .pane-back svg {
   width: 18px;
   height: 18px;
