@@ -201,20 +201,12 @@ const timelineNext = document.getElementById('timeline-next');
 const GAP = 152;
 const SPREAD = 9;
 
-/**
- * The inset at either end, taken from the track's own padding so it matches the
- * rest of the page's edges. Absolutely positioned children ignore that padding,
- * so it has to be added back here — which is the whole reason it is stated in
- * the stylesheet rather than typed as a number in this file.
- *
- * The two ends differ: the lead-in also has to clear the back button, which
- * stands halfway down the left edge.
- */
-function timelineInset() {
-  if (!timelineTrack) return { lead: 0, tail: 0 };
-  const style = getComputedStyle(timelineTrack);
-  return { lead: parseFloat(style.paddingLeft) || 0, tail: parseFloat(style.paddingRight) || 0 };
-}
+/** The leading inset, taken from the track's own padding so it matches the rest
+ *  of the page's edges. Absolutely positioned children ignore that padding, so
+ *  it has to be added back here — which is the whole reason it is stated there
+ *  rather than typed as a number in this file. */
+const timelineEdge = () =>
+  timelineTrack ? parseFloat(getComputedStyle(timelineTrack).paddingLeft) || 0 : 0;
 
 /**
  * Lay the track out from the years in the markup.
@@ -232,26 +224,26 @@ function placeTimeline() {
     .sort((a, b) => a.year - b.year);
   if (items.length === 0) return;
 
-  const { lead, tail } = timelineInset();
+  const edge = timelineEdge();
   let x = 0;
   let last = items[0].year;
   for (const [i, item] of items.entries()) {
     if (i > 0) x += GAP + (item.year - last) * SPREAD;
     last = item.year;
-    item.el.style.left = `${Math.round(lead + x)}px`;
+    item.el.style.left = `${Math.round(edge + x)}px`;
   }
 
-  // As wide as the last thing on it, plus the inset at the far end — so the line
-  // runs past the final card rather than stopping under it.
-  const width = items[items.length - 1].el.offsetWidth;
-  timelineTrack.style.width = `${Math.round(lead + x + width + tail)}px`;
+  // As wide as the last thing on it, plus the same inset at the far end — so the
+  // line runs past the final card rather than stopping under it.
+  const tail = items[items.length - 1].el.offsetWidth;
+  timelineTrack.style.width = `${Math.round(edge + x + tail + edge)}px`;
 }
 
 /** Where each moment comes to rest, as a scroll position along the track. */
 function timelineStops() {
   if (!timeline || !timelineTrack) return [];
-  const { lead } = timelineInset();
-  return [...timelineTrack.querySelectorAll('.moment')].map((m) => m.offsetLeft - lead);
+  const edge = timelineEdge();
+  return [...timelineTrack.querySelectorAll('.moment')].map((m) => m.offsetLeft - edge);
 }
 
 const timelineEnd = () => (timeline ? timeline.scrollWidth - timeline.clientWidth : 0);
