@@ -966,30 +966,54 @@ html.pane-open .site-head {
 }
 
 /* The photograph is behind this one, so the fade has to be over the photograph
-   and not over white.
-
-   Reversed, too: About is held off the left edge, so the site is out to the
-   right of it and the way back is over there. The row order is the only thing
-   that changes — the button is the same button, and on History, which comes in
-   from the other side, it stays on the left. */
+   and not over white. */
 .pane-about .pane-head {
-  flex-direction: row-reverse;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.97) 58%, rgba(255, 255, 255, 0));
 }
 
+/* The way back, and it is the same door as the way in.
+
+   The cue that opens About sits halfway down the left edge of the title screen;
+   standing inside About, the site is out through the right-hand wall, so the
+   button is halfway down the right edge. History is the same thing mirrored.
+   The door does not move — which side of your screen it is on depends only on
+   which room you are standing in.
+
+   `fixed` rather than absolute, because both pages are scroll containers and a
+   door does not slide up the wall when you scroll. It still travels in with the
+   page: a transformed ancestor is a containing block for fixed descendants, so
+   for the whole of the slide this is positioned against the pane, and it lands
+   on the viewport at the moment the transform resolves to `none` — by which
+   time the pane is the viewport and the two agree to the pixel. */
 .pane-back {
+  position: fixed;
+  top: 50%;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 15px 7px 11px;
+  padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  /* Nearly solid. It stands out in the open now rather than in a header over a
+     scrim, and on About the open is the photograph — at the transparency the
+     header version had, it read as part of the picture. */
+  background: rgba(255, 255, 255, 0.88);
   color: var(--ink);
   cursor: pointer;
   font: 500 16px/1 var(--condensed);
   letter-spacing: 0.01em;
   transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.pane-about .pane-back {
+  right: clamp(10px, 4vw, 50px);
+  transform: translateY(-50%);
+}
+
+.pane-history .pane-back {
+  left: clamp(10px, 4vw, 50px);
+  transform: translateY(-50%);
 }
 
 /* Back is the direction the site is in, not a fixed arrow: About sits to the
@@ -1114,7 +1138,13 @@ html.pane-open .site-head {
 .timeline-track {
   position: relative;
   height: 100%;
-  padding: 0 clamp(16px, 4vw, 56px);
+  /* The lead-in is wide enough to be the back button's own margin. The button
+     stands halfway down the left edge, which is exactly where the line and the
+     first dot would otherwise be, so the track starts to the right of it. The
+     line still runs to the very edge of the page behind it — it is the markers
+     that move, not the axis. Narrow, the button goes back into the header and
+     this comes back to the page's ordinary inset. */
+  padding: 0 clamp(16px, 4vw, 56px) 0 178px;
 
   /* Where the line sits, measured from the top of the track. Everything above it
      is context and everything below it is the piece, so this is also the split
@@ -1329,6 +1359,19 @@ html.pane-open .site-head {
         rgba(255, 255, 255, 0.58) 100%
       ),
       url('../images/colloquy hero.webp');
+  }
+
+  /* The door goes back into the header. Halfway down an edge only works if
+     there is an edge to spare, and at this width there is not: the text runs
+     the full page on About and the timeline uses every pixel on History. The
+     same condition the cues on the title screen stack under. */
+  .pane-back {
+    position: static;
+    transform: none;
+  }
+
+  .pane-history .timeline-track {
+    padding-left: clamp(16px, 4vw, 56px);
   }
 
   .pane-title {
