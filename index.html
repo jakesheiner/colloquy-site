@@ -116,43 +116,102 @@
       </header>
 
       <div class="pane-body pane-body-wide">
-        <h2 class="pane-title">Built three times</h2>
+        <h2 class="pane-title">The first agentic system</h2>
+        <p class="pane-standfirst">
+          Five machines that wanted something, went looking for it, and changed each other's behaviour getting it — in
+          1968, before the field had a word for any of that. The Colloquy runs below the line. What the rest of the
+          world was doing runs above it.
+        </p>
       </div>
 
       <!--
         The scroller. `src/pages.js` turns a vertical wheel into travel along
         it, so the page reads sideways with an ordinary mouse.
+
+        Everything in here is placed by `placeTimeline()` from its own
+        `data-year`, rather than laid out in a row: the point of the page is
+        when these things happened relative to each other, and a flex row would
+        put an even gap between 1986 and 1987 and between 1995 and 2016.
       -->
       <div class="timeline" id="timeline" tabindex="0" role="group" aria-label="Timeline">
-        <!--
-          The gaps between the moments are sized by how long they actually were.
-          Not to scale — fifty years at the eight-year gap's rate would be a
-          quarter-mile of white — but compressed to keep the order of the thing:
-          the wait after 1968 is the shape of this story, and a row of three
-          evenly-spaced cards is exactly the shape it is not. It is also what
-          gives the timeline something to scroll, since three cards otherwise sit
-          inside a laptop window with room to spare.
-        -->
-        <ol class="timeline-track">
-          <li class="moment">
+        <div class="timeline-track" id="timeline-track">
+          <div class="timeline-rule" aria-hidden="true"></div>
+
+          <!--
+            Above the line: the field, in shorthand. These are context, and they
+            are built to read as context — no headline, no body, one line each.
+            The three below the line are the subject.
+          -->
+          <div class="tick" data-year="1950">
+            <p class="tick-year">1950</p>
+            <p class="tick-text">Turing proposes the imitation game</p>
+          </div>
+
+          <div class="tick" data-year="1956">
+            <p class="tick-year">1956</p>
+            <p class="tick-text">Dartmouth names the field</p>
+          </div>
+
+          <div class="tick" data-year="1966">
+            <p class="tick-year">1966</p>
+            <p class="tick-text">ELIZA answers, and wants nothing</p>
+          </div>
+
+          <div class="tick" data-year="1972">
+            <p class="tick-year">1972</p>
+            <p class="tick-text">Shakey plans its own route — one machine, alone</p>
+          </div>
+
+          <div class="tick" data-year="1986">
+            <p class="tick-year">1986</p>
+            <p class="tick-text">Brooks: behaviour without a world model</p>
+          </div>
+
+          <div class="tick" data-year="1987">
+            <p class="tick-year">1987</p>
+            <p class="tick-text">Boids flock on three local rules</p>
+          </div>
+
+          <div class="tick" data-year="1995">
+            <p class="tick-year">1995</p>
+            <p class="tick-text">The agent becomes the unit the field is taught in</p>
+          </div>
+
+          <div class="tick" data-year="2016">
+            <p class="tick-year">2016</p>
+            <p class="tick-text">AlphaGo</p>
+          </div>
+
+          <div class="tick" data-year="2017">
+            <p class="tick-year">2017</p>
+            <p class="tick-text">Transformers</p>
+          </div>
+
+          <div class="tick" data-year="2022">
+            <p class="tick-year">2022</p>
+            <p class="tick-text">ChatGPT</p>
+          </div>
+
+          <div class="tick" data-year="2023">
+            <p class="tick-year">2023</p>
+            <p class="tick-text">Models get tools and a loop, and are called agents</p>
+          </div>
+
+          <!-- Below the line: the piece itself, the three times it was built. -->
+          <article class="moment" data-year="1968">
             <p class="moment-year">1968</p>
             <h3 class="moment-title">Cybernetic Serendipity</h3>
             <p class="moment-where">Institute of Contemporary Arts, London</p>
             <p class="moment-body">
-              Gordon Pask built the Colloquy for the exhibition Jasia Reichardt opened at the ICA in August 1968 — the
-              show that put computers, cybernetics and art in one room for the first time in Britain.
+              Five mobiles hang from a rack, each with appetites of its own, hunting for the one thing that will satisfy
+              them: each other. They negotiate in light and sound, and what one does changes what the others do.
             </p>
             <p class="moment-body">
-              Five mobiles hung from a rack over a plinth, talking to each other in light and sound. Visitors worked out
-              that they could join in: a pocket mirror or a torch was enough to be taken for one of them.
+              Nobody called this an agentic system. The word arrives decades later, and describes it exactly.
             </p>
-          </li>
+          </article>
 
-          <li class="span" style="--span: clamp(240px, 27vw, 560px)" aria-hidden="true">
-            <span>Fifty years</span>
-          </li>
-
-          <li class="moment">
+          <article class="moment" data-year="2018">
             <p class="moment-year">2018</p>
             <h3 class="moment-title">Built again as hardware</h3>
             <p class="moment-where">Fiftieth anniversary reconstruction</p>
@@ -161,17 +220,12 @@
               appetites, the same conversation carried on light and sound.
             </p>
             <p class="moment-body">
-              The original survives mostly as photographs, a handful of accounts and Pask's own description of how it
-              was meant to behave. A reconstruction has to actually run, so every gap in that record becomes a decision
-              somebody has to make and defend.
+              The original survives mostly as photographs and Pask's own account of how it was meant to behave. A
+              reconstruction has to actually run, so every gap in that record becomes a decision somebody has to defend.
             </p>
-          </li>
+          </article>
 
-          <li class="span" style="--span: clamp(124px, 9vw, 180px)" aria-hidden="true">
-            <span>Eight years</span>
-          </li>
-
-          <li class="moment">
+          <article class="moment" data-year="2026">
             <p class="moment-year">2026</p>
             <h3 class="moment-title">The digital recreation</h3>
             <p class="moment-where">Colloquy Scene Studio</p>
@@ -189,8 +243,8 @@
                 colloquyscenestudio.aroughidea.com
               </a>
             </p>
-          </li>
-        </ol>
+          </article>
+        </div>
       </div>
 
       <div class="timeline-nav">

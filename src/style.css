@@ -1029,10 +1029,17 @@ html.pane-open .site-head {
 }
 
 /* The timeline underneath runs the full width, so its heading must not be
-   boxed to a reading column. */
+   boxed to a reading column. The title comes down a size here too: it shares
+   the top of the page with a standfirst and a timeline, where About's has the
+   screen to itself. */
 .pane-body-wide {
   max-width: none;
-  padding-bottom: clamp(24px, 5vh, 54px);
+  padding-bottom: clamp(20px, 4vh, 42px);
+}
+
+.pane-body-wide .pane-title {
+  margin-bottom: 20px;
+  font-size: clamp(32px, 4vw, 54px);
 }
 
 .pane-title {
@@ -1041,6 +1048,17 @@ html.pane-open .site-head {
   letter-spacing: -0.01em;
   text-wrap: balance;
   color: var(--ink);
+}
+
+/* The line under the History title that says what the page is arguing. Set
+   between the title and the body — bigger than the timeline's own text, so the
+   claim is read before the evidence, and grey so it is not a second headline. */
+.pane-standfirst {
+  margin: -8px 0 0;
+  max-width: 62ch;
+  font: 400 clamp(17px, 1.35vw, 21px) / 1.45 var(--condensed);
+  text-wrap: pretty;
+  color: var(--mute);
 }
 
 .pane-lede {
@@ -1084,61 +1102,97 @@ html.pane-open .site-head {
   outline: none;
 }
 
+/* Everything on the track is placed absolutely, at a position `placeTimeline()`
+   works out from its own year. Not a row: the page is about when these things
+   happened relative to each other, and a row puts the same gap between 1986 and
+   1987 as it does between 1995 and 2016.
+
+   The padding is not laying anything out — absolute children are positioned
+   against the padding box and ignore it — but it is the figure `placeTimeline()`
+   reads for the lead-in at either end, so it is stated here with the rest of the
+   page's edges rather than typed again in the script. */
 .timeline-track {
   position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: clamp(24px, 4vw, 56px);
-  width: max-content;
-  min-width: 100%;
-  margin: 0;
+  height: 100%;
   padding: 0 clamp(16px, 4vw, 56px);
-  list-style: none;
+
+  /* Where the line sits, measured from the top of the track. Everything above it
+     is context and everything below it is the piece, so this is also the split
+     between the two registers — and it has to leave the taller of them, the
+     cards, room to finish inside the scroller. */
+  --rule: clamp(96px, 15vh, 148px);
 }
 
-/* The line the moments are pinned to, running the whole length of the track
-   rather than the window — so it carries on past the edge of the screen, which
-   is the cue that there is more of it. */
-.timeline-track::before {
-  content: '';
+/* The line itself, running the whole length of the track rather than the window
+   — so it carries on past both edges of the screen, which is the cue that there
+   is more of it. */
+.timeline-rule {
   position: absolute;
   left: 0;
   right: 0;
-  top: 26px;
+  top: var(--rule);
   height: 1px;
   background: var(--line);
 }
 
-.moment {
-  position: relative;
-  flex: none;
-  width: min(80vw, 420px);
-  padding-top: 62px;
-}
+/* --- above the line: the field, in shorthand ------------------------------- */
 
-/* The wait between two moments, as a stretch of the line with how long it was
-   written on it. Its width is set per gap in the markup, because the number it
-   stands for is a fact about that gap and not a rhythm the layout chose. */
-.span {
-  position: relative;
-  flex: none;
-  width: var(--span, 200px);
-  align-self: stretch;
-}
+/* Context, and built to read as context. One line each, no headline, no body,
+   grey — so that a glance up the page finds the shape of the years and a glance
+   down finds the three things the page is actually about.
 
-.span span {
+   Bottom-aligned against the line, so however many lines a label wraps to they
+   all hang from the same place. */
+.tick {
   position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  /* Sat on the line, with the page's own ground either side of it so the rule
-     runs up to the words and continues after them. */
-  padding: 0 12px;
-  background: var(--bg);
-  white-space: nowrap;
-  font: 500 15px/15px var(--condensed);
+  top: 0;
+  height: var(--rule);
+  width: 138px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 15px;
+  /* Under the cards. A card is 420 wide and a tick is 150, so the later ones sit
+     over each other horizontally — but a tick is above the line and a card is
+     below it, so they never actually meet. This only settles the stems. */
+  z-index: 1;
+}
+
+/* The stem down to the line. A hairline rather than a dot: the dots belong to
+   the three below, and giving these the same mark would make them the same
+   kind of thing. */
+.tick::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 15px;
+  background: rgba(19, 19, 22, 0.28);
+}
+
+.tick-year {
+  margin: 0 0 3px;
+  font: 500 14px/1 var(--condensed);
   letter-spacing: 0.01em;
   color: var(--mute);
+}
+
+.tick-text {
+  margin: 0;
+  font: 400 14px/1.3 var(--condensed);
+  text-wrap: pretty;
+  color: var(--mute);
+}
+
+/* --- below the line: the piece --------------------------------------------- */
+
+.moment {
+  position: absolute;
+  top: var(--rule);
+  width: min(80vw, 420px);
+  padding-top: 40px;
+  z-index: 2;
 }
 
 /* The marker on the line. The ring is the page's own ground, painted over the
@@ -1146,7 +1200,7 @@ html.pane-open .site-head {
 .moment::before {
   content: '';
   position: absolute;
-  top: 20px;
+  top: -6px;
   left: 0;
   width: 13px;
   height: 13px;
@@ -1163,7 +1217,7 @@ html.pane-open .site-head {
 
 .moment-year {
   margin: 0 0 6px;
-  font: 600 clamp(38px, 4.6vw, 62px) / 1 var(--condensed);
+  font: 600 clamp(34px, 3.6vw, 50px) / 1 var(--condensed);
   letter-spacing: -0.01em;
   color: var(--ink);
 }
@@ -1184,8 +1238,8 @@ html.pane-open .site-head {
 }
 
 .moment-body {
-  margin: 0 0 14px;
-  font: 400 clamp(17px, 1.35vw, 20px) / 1.45 var(--condensed);
+  margin: 0 0 12px;
+  font: 400 clamp(16px, 1.2vw, 18px) / 1.45 var(--condensed);
   text-wrap: pretty;
   color: var(--mute);
 }

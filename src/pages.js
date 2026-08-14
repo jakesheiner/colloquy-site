@@ -81,6 +81,17 @@ let parked = 0;
 let opener = null;
 
 /**
+ * Where a page should be sitting when it opens, for pages that have somewhere
+ * to be. Assigned by the timeline below, which wants to open on 1968 rather
+ * than on 1950 — the page is about the Colloquy, and the eighteen years before
+ * it are context you can go back for.
+ *
+ * A hook rather than a call into the timeline's own code, because that code is
+ * further down the file than this is and `const` bindings are not hoisted.
+ */
+let restPane = () => {};
+
+/**
  * Show a page, or the site.
  *
  * The site under an open page is frozen rather than merely covered: its scroll
@@ -107,8 +118,9 @@ function apply(id) {
     }
     openPane.inert = false;
     openPane.setAttribute('data-showing', '');
-    // Read from the top every time it is opened, not from wherever it was left.
+    // Read from the start every time it is opened, not from wherever it was left.
     openPane.scrollTop = 0;
+    restPane(openPane);
     // Next frame: the element is `visibility: hidden` until the attribute above
     // has been through style, and there is nothing to focus in a hidden box.
     requestAnimationFrame(() => {
@@ -172,52 +184,145 @@ for (const back of document.querySelectorAll('[data-close]')) {
 // --- the timeline -------------------------------------------------------------
 
 const timeline = document.getElementById('timeline');
-const timelineTrack = timeline?.querySelector('.timeline-track') ?? null;
+const timelineTrack = document.getElementById('timeline-track');
 const timelinePrev = document.getElementById('timeline-prev');
 const timelineNext = document.getElementById('timeline-next');
+
+/**
+ * How far apart two years are drawn.
+ *
+ * Not to scale. Linear time puts two thirds of the page in the stretch between
+ * 1968 and 2018 and stacks 2016, 2017 and 2018 on top of each other, so this is
+ * a floor plus a slope: every step gets `GAP` whatever it is, and then `SPREAD`
+ * for each year in it. Order and proportion survive — fifty years is visibly
+ * longer than one — without the empty decades taking the whole page and the busy
+ * ones becoming unreadable.
+ */
+const GAP = 152;
+const SPREAD = 9;
+
+/** The leading inset, taken from the track's own padding so it matches the rest
+ *  of the page's edges. Absolutely positioned children ignore that padding, so
+ *  it has to be added back here — which is the whole reason it is stated there
+ *  rather than typed as a number in this file. */
+const timelineEdge = () =>
+  timelineTrack ? parseFloat(getComputedStyle(timelineTrack).paddingLeft) || 0 : 0;
+
+/**
+ * Lay the track out from the years in the markup.
+ *
+ * Everything with a `data-year` is placed, whatever kind of thing it is: the
+ * three cards below the line and the eleven ticks above it go through the same
+ * arithmetic, so a tick can never drift out of order against a card. Run again
+ * on resize because both the inset and the card width are set in viewport units.
+ */
+function placeTimeline() {
+  if (!timeline || !timelineTrack) return;
+  const items = [...timelineTrack.querySelectorAll('[data-year]')]
+    .map((el) => ({ el, year: Number(el.dataset.year) }))
+    .filter((item) => Number.isFinite(item.year))
+    .sort((a, b) => a.year - b.year);
+  if (items.length === 0) return;
+
+  const edge = timelineEdge();
+  let x = 0;
+  let last = items[0].year;
+  for (const [i, item] of items.entries()) {
+    if (i > 0) x += GAP + (item.year - last) * SPREAD;
+    last = item.year;
+    item.el.style.left = `${Math.round(edge + x)}px`;
+  }
+
+  // As wide as the last thing on it, plus the same inset at the far end — so the
+  // line runs past the final card rather than stopping under it.
+  const tail = items[items.length - 1].el.offsetWidth;
+  timelineTrack.style.width = `${Math.round(edge + x + tail + edge)}px`;
+}
 
 /** Where each moment comes to rest, as a scroll position along the track. */
 function timelineStops() {
   if (!timeline || !timelineTrack) return [];
-  const pad = parseFloat(getComputedStyle(timelineTrack).paddingLeft) || 0;
-  return [...timelineTrack.querySelectorAll('.moment')].map((m) => m.offsetLeft - pad);
+  const edge = timelineEdge();
+  return [...timelineTrack.querySelectorAll('.moment')].map((m) => m.offsetLeft - edge);
 }
 
 const timelineEnd = () => (timeline ? timeline.scrollWidth - timeline.clientWidth : 0);
 
-function stepTimeline(direction) {
-  if (!timeline) return;
-  const now = timeline.scrollLeft;
-  const stops = timelineStops();
-  // A tolerance, because a snapped scroll lands within a pixel of a stop rather
-  // than on it, and without one the next press would aim at the stop it is
-  // already sitting on.
-  const to =
-    direction > 0
-      ? stops.find((stop) => stop > now + 4)
-      : [...stops].reverse().find((stop) => stop < now - 4);
-  if (to === undefined) return;
-  timeline.scrollTo({
-    left: Math.max(0, Math.min(timelineEnd(), to)),
-    behavior: stillMotion.matches ? 'auto' : 'smooth',
-  });
+/**
+ * Everywhere the arrows will stop: the three moments, and both ends of the line.
+ *
+ * The ends are in there because the moments alone are not the whole page any
+ * more. The timeline opens on 1968, and there are eighteen years of the field
+ * before it — with only the moments as stops, the back arrow would be dead
+ * standing on the first one, which says that stretch is not there. The far end
+ * is in for the same reason: the last card sits well inside the track, and the
+ * years after it are worth arriving at.
+ *
+ * Clamped and deduplicated, because a card's own position is often past the
+ * furthest the track can scroll — on a wide window the last two both resolve to
+ * the end, and two stops in the same place means one dead press of the arrow.
+ */
+function timelineHalts() {
+  const end = timelineEnd();
+  const all = [0, ...timelineStops(), end].map((stop) => Math.max(0, Math.min(end, stop)));
+  return [...new Set(all.map(Math.round))].sort((a, b) => a - b);
 }
 
-/** Off at the ends. Read from the scroll itself rather than from which moment is
- *  showing: the last one is wider than what is left of the track, so there is a
- *  stretch past its stop that is still somewhere to go. */
+/** The stop either side of where the track is sitting. A tolerance, because a
+ *  scroll lands within a pixel of a stop rather than on it, and without one the
+ *  next press would aim at the stop it is already standing on. */
+function nextHalt(direction) {
+  const now = timeline ? timeline.scrollLeft : 0;
+  const stops = timelineHalts();
+  return direction > 0
+    ? stops.find((stop) => stop > now + 4)
+    : [...stops].reverse().find((stop) => stop < now - 4);
+}
+
+function stepTimeline(direction) {
+  if (!timeline) return;
+  const to = nextHalt(direction);
+  if (to === undefined) return;
+  timeline.scrollTo({ left: to, behavior: stillMotion.matches ? 'auto' : 'smooth' });
+}
+
+/** Off when there is nowhere that way to go, so a live arrow always means there
+ *  is more of the line in that direction. */
 function updateTimelineNav() {
   if (!timeline || !timelinePrev || !timelineNext) return;
-  const end = timelineEnd();
-  timelinePrev.disabled = timeline.scrollLeft <= 2;
-  timelineNext.disabled = timeline.scrollLeft >= end - 2;
+  timelinePrev.disabled = nextHalt(-1) === undefined;
+  timelineNext.disabled = nextHalt(1) === undefined;
 }
 
 timelinePrev?.addEventListener('click', () => stepTimeline(-1));
 timelineNext?.addEventListener('click', () => stepTimeline(1));
 timeline?.addEventListener('scroll', updateTimelineNav, { passive: true });
-window.addEventListener('resize', updateTimelineNav);
+window.addEventListener('resize', () => {
+  placeTimeline();
+  updateTimelineNav();
+});
+placeTimeline();
 updateTimelineNav();
+
+/**
+ * Open the timeline on 1968 rather than at the far left of it.
+ *
+ * The page argues that the Colloquy was the first of these things, and the
+ * first thing it should show is the Colloquy. Everything before it is still
+ * there, one arrow to the left — and the arrow being live is what says so.
+ */
+restPane = (pane) => {
+  if (!timeline || !pane.contains(timeline)) return;
+  placeTimeline();
+  const [first] = timelineStops();
+  if (first === undefined) return;
+  timeline.scrollLeft = Math.max(0, Math.min(timelineEnd(), first));
+  updateTimelineNav();
+};
+
+// The track's width is the last card's width plus where it sits, and a card is
+// not its real width until the condensed face has arrived.
+if (document.fonts) document.fonts.ready.then(placeTimeline);
 
 /**
  * A wheel down the page is travel along the track.
