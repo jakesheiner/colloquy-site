@@ -822,9 +822,12 @@ html.pane-open .site-head {
   background: none;
   color: var(--mute);
   cursor: pointer;
-  font: 500 13px/1 var(--condensed);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  /* Sentence case, and a size up from where it was. Set as spaced small capitals
+     this read as signage — and none of it is signage, it is three words telling
+     you where you can go. Lowercase needs no tracking to be legible and needs a
+     point or two more to hold its own beside the headline. */
+  font: 500 16px/1 var(--condensed);
+  letter-spacing: 0.01em;
   transition: color 160ms ease;
 }
 
@@ -984,9 +987,8 @@ html.pane-open .site-head {
   background: rgba(255, 255, 255, 0.72);
   color: var(--ink);
   cursor: pointer;
-  font: 500 13px/1 var(--condensed);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font: 500 16px/1 var(--condensed);
+  letter-spacing: 0.01em;
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 
@@ -1012,15 +1014,17 @@ html.pane-open .site-head {
    lines below and this is only the address. */
 .pane-site {
   margin: 0;
-  font: 500 13px/1 var(--condensed);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font: 500 16px/1 var(--condensed);
+  letter-spacing: 0.01em;
   color: var(--mute);
 }
 
 .pane-body {
   flex: none;
-  padding: 0 clamp(16px, 4vw, 56px) clamp(40px, 8vh, 90px);
+  /* A little air at the top, which the eyebrow used to provide. It went with the
+     rest of them: a line reading "About" over a title on a page reached by a
+     button marked About says nothing the reader has not just done. */
+  padding: clamp(4px, 1.4vh, 14px) clamp(16px, 4vw, 56px) clamp(40px, 8vh, 90px);
   max-width: 720px;
 }
 
@@ -1031,19 +1035,10 @@ html.pane-open .site-head {
   padding-bottom: clamp(24px, 5vh, 54px);
 }
 
-.pane-eyebrow {
-  margin: 0 0 18px;
-  font: 500 15px/1 var(--condensed);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--mute);
-}
-
 .pane-title {
   margin: 0 0 28px;
-  font: 600 clamp(38px, 5.4vw, 70px) / 0.98 var(--condensed);
+  font: 600 clamp(38px, 5.4vw, 70px) / 1.02 var(--condensed);
   letter-spacing: -0.01em;
-  text-transform: uppercase;
   text-wrap: balance;
   color: var(--ink);
 }
@@ -1141,9 +1136,8 @@ html.pane-open .site-head {
   padding: 0 12px;
   background: var(--bg);
   white-space: nowrap;
-  font: 500 13px/13px var(--condensed);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font: 500 15px/15px var(--condensed);
+  letter-spacing: 0.01em;
   color: var(--mute);
 }
 
@@ -1184,9 +1178,8 @@ html.pane-open .site-head {
 
 .moment-where {
   margin: 0 0 18px;
-  font: 500 13px/1.3 var(--condensed);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font: 500 16px/1.3 var(--condensed);
+  letter-spacing: 0.01em;
   color: var(--mute);
 }
 
