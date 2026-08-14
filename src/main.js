@@ -2602,6 +2602,13 @@ function frame() {
   advanceStep();
   positionHead();
 
+  // One of the sideways pages is over the site. It covers the window entirely
+  // and the scroll this is scrubbed by is locked while it is open, so there is
+  // nothing below to draw and nothing that could have changed — and the page on
+  // top has its own scrolling to do, which should not be sharing a frame with a
+  // WebGL draw. `src/pages.js` owns the class.
+  if (document.documentElement.classList.contains('pane-open')) return;
+
   const rect = pinSection.getBoundingClientRect();
   if (rect.bottom <= 0 || rect.top >= window.innerHeight) return; // stage off screen
 

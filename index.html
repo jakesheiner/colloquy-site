@@ -26,6 +26,184 @@
       <h1>The Colloquy of Mobiles</h1>
     </header>
 
+    <!--
+      The three ways out of the title screen, laid out the way they read: About
+      to the left, History to the right, the piece itself straight down. Held
+      over the title screen and faded off by `src/pages.js` as the reader leaves
+      it, because past that point the page is the piece and these would be
+      furniture over it.
+
+      Outside `main`, with the pages below, so that `overflow-x: clip` on it
+      cannot clip anything fixed.
+    -->
+    <nav class="compass" id="compass" aria-label="Sections">
+      <button type="button" class="compass-cue compass-left" data-open="about">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>About</span>
+      </button>
+
+      <button type="button" class="compass-cue compass-down" id="compass-down">
+        <span>The piece</span>
+        <span class="compass-rule"></span>
+      </button>
+
+      <button type="button" class="compass-cue compass-right" data-open="history">
+        <span>History</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </nav>
+
+    <!--
+      About. The intro the site used to open on, before the headline took the
+      first screen over: it is the same words, moved to a page of their own
+      rather than deleted, and it keeps the hero photograph the old homepage
+      carried behind them.
+    -->
+    <section class="pane pane-about" id="about" data-side="left" aria-label="About" inert>
+      <header class="pane-head">
+        <button type="button" class="pane-back" data-close>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Back</span>
+        </button>
+        <p class="pane-site">The Colloquy of Mobiles</p>
+      </header>
+
+      <div class="pane-body">
+        <p class="pane-eyebrow">About</p>
+        <h2 class="pane-title">A conversation between five machines</h2>
+
+        <p class="pane-lede">
+          Five bodies hang from a rack. Three of them — the <span class="term" data-term="female">females</span> — turn
+          slowly on their armatures, each carrying a mirror and a hunger for light. Two more — the
+          <span class="term" data-term="male">males</span> — ride a rotating beam above the plinth, sweeping the room
+          with a lamp, looking for something to answer them.
+        </p>
+        <p class="pane-lede">
+          Neither can satisfy itself alone. When a male's beam finds a female's mirror and the reflection comes back,
+          the two lock on and trade signals until both are spent. Then they drift apart and begin again.
+        </p>
+        <p class="pane-lede">
+          What this site shows is not an animation of that idea. It is a recording of the simulation itself — two
+          minutes of it, unedited, every tick a complete state of every body — played back under your scroll.
+        </p>
+        <p class="pane-lede footnote">
+          It runs a whole cycle. The five begin spent, then fall to searching, and for most of the scroll nothing finds
+          anything. Two thirds of the way down Female A and Male I catch each other and hold — and then she lets go, he
+          does, and all five go back to hunting.
+        </p>
+      </div>
+    </section>
+
+    <!--
+      History. A timeline that runs sideways, because the thing it is tracking
+      is one work being built three times over sixty years, and reading it
+      across is reading it in order.
+    -->
+    <section class="pane pane-history" id="history" data-side="right" aria-label="History" inert>
+      <header class="pane-head">
+        <button type="button" class="pane-back" data-close>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Back</span>
+        </button>
+        <p class="pane-site">The Colloquy of Mobiles</p>
+      </header>
+
+      <div class="pane-body pane-body-wide">
+        <p class="pane-eyebrow">History</p>
+        <h2 class="pane-title">Built three times</h2>
+      </div>
+
+      <!--
+        The scroller. `src/pages.js` turns a vertical wheel into travel along
+        it, so the page reads sideways with an ordinary mouse.
+      -->
+      <div class="timeline" id="timeline" tabindex="0" role="group" aria-label="Timeline">
+        <!--
+          The gaps between the moments are sized by how long they actually were.
+          Not to scale — fifty years at the eight-year gap's rate would be a
+          quarter-mile of white — but compressed to keep the order of the thing:
+          the wait after 1968 is the shape of this story, and a row of three
+          evenly-spaced cards is exactly the shape it is not. It is also what
+          gives the timeline something to scroll, since three cards otherwise sit
+          inside a laptop window with room to spare.
+        -->
+        <ol class="timeline-track">
+          <li class="moment">
+            <p class="moment-year">1968</p>
+            <h3 class="moment-title">Cybernetic Serendipity</h3>
+            <p class="moment-where">Institute of Contemporary Arts, London</p>
+            <p class="moment-body">
+              Gordon Pask built the Colloquy for the exhibition Jasia Reichardt opened at the ICA in August 1968 — the
+              show that put computers, cybernetics and art in one room for the first time in Britain.
+            </p>
+            <p class="moment-body">
+              Five mobiles hung from a rack over a plinth, talking to each other in light and sound. Visitors worked out
+              that they could join in: a pocket mirror or a torch was enough to be taken for one of them.
+            </p>
+          </li>
+
+          <li class="span" style="--span: clamp(240px, 27vw, 560px)" aria-hidden="true">
+            <span>Fifty years</span>
+          </li>
+
+          <li class="moment">
+            <p class="moment-year">2018</p>
+            <h3 class="moment-title">Built again as hardware</h3>
+            <p class="moment-where">Fiftieth anniversary reconstruction</p>
+            <p class="moment-body">
+              Fifty years on, the piece was made a second time as a physical thing — the same five bodies, the same
+              appetites, the same conversation carried on light and sound.
+            </p>
+            <p class="moment-body">
+              The original survives mostly as photographs, a handful of accounts and Pask's own description of how it
+              was meant to behave. A reconstruction has to actually run, so every gap in that record becomes a decision
+              somebody has to make and defend.
+            </p>
+          </li>
+
+          <li class="span" style="--span: clamp(124px, 9vw, 180px)" aria-hidden="true">
+            <span>Eight years</span>
+          </li>
+
+          <li class="moment">
+            <p class="moment-year">2026</p>
+            <h3 class="moment-title">The digital recreation</h3>
+            <p class="moment-where">This site</p>
+            <p class="moment-body">
+              The bodies here are modelled from measured drawings, and the behaviour is a simulation of Pask's logic
+              rather than an animation of it: drives that grow, a search, an encounter, satisfaction, and a return to
+              searching.
+            </p>
+            <p class="moment-body">
+              Nothing is choreographed. The site scrubs a recording of one run — whatever the five of them happened to
+              do over two minutes — and the scroll is the only thing standing between you and it.
+            </p>
+          </li>
+        </ol>
+      </div>
+
+      <div class="timeline-nav">
+        <button type="button" class="beat-nav-button" id="timeline-prev" aria-label="Earlier">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button type="button" class="beat-nav-button" id="timeline-next" aria-label="Later">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </section>
+
     <main>
       <!--
         The title screen: a white page with the headline in the middle of it, and
@@ -97,6 +275,13 @@
         <div class="readout" id="drive-slot"></div>
       </section>
     </main>
+    <!--
+      Its own module, and first. Moving between the three pages must not depend
+      on the scene: `main.js` opens with a top-level `await` on the clip player
+      and gives up entirely if the recording will not load, and a reader who
+      cannot see the piece should still be able to read about it.
+    -->
+    <script type="module" src="/src/pages.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
