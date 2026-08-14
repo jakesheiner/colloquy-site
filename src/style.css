@@ -963,8 +963,14 @@ html.pane-open .site-head {
 }
 
 /* The photograph is behind this one, so the fade has to be over the photograph
-   and not over white. */
+   and not over white.
+
+   Reversed, too: About is held off the left edge, so the site is out to the
+   right of it and the way back is over there. The row order is the only thing
+   that changes — the button is the same button, and on History, which comes in
+   from the other side, it stays on the left. */
 .pane-about .pane-head {
+  flex-direction: row-reverse;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.97) 58%, rgba(255, 255, 255, 0));
 }
 
