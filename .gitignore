@@ -26,6 +26,11 @@ dist-ssr
 # Machine-local Claude Code permissions; launch.json is shared and stays tracked.
 .claude/settings.local.json
 
+# Popmelt keeps its annotations, screenshots, threads and Imprint here. It is a
+# record of conversations about the page rather than anything the page needs to
+# be built, and it fills up with screenshots.
+.popmelt/
+
 # The raw Rhino export the meshes were picked out of — 17MB, and every file in it
 # that the page actually uses already lives in public/models.
 colloquy models/
