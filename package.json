@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@popmelt.com/core": "^0.12.1",
     "vite": "^8.1.1"
   },
   "dependencies": {

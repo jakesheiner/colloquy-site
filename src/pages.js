@@ -21,14 +21,6 @@
  * load — can still read the pages about it.
  */
 
-// Popmelt's toolbar, in development only. It hangs off this module rather than
-// off `main.js` because this one always runs — `main.js` opens with a top-level
-// `await` on the clip player and gives up if the recording will not load, and a
-// devtool for talking about the page should not be the second casualty of that.
-// `import.meta.env.DEV` is `false` in a build, so none of it — nor React — is
-// reachable from the production bundle.
-if (import.meta.env.DEV) import('./popmelt.js');
-
 const compass = document.getElementById('compass');
 const compassDown = document.getElementById('compass-down');
 const titleScreen = document.getElementById('title-screen');
