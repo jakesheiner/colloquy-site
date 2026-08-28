@@ -49,3 +49,12 @@ public/models/*
 !public/models/female-interiorled-lower-260316.obj
 !public/models/male-lightsource-ring-260712b.obj
 !public/models/male-lightsource-support.obj
+
+# Screen recordings of the page, and zipped copies of it for sending on. Both
+# are regenerated on demand and neither belongs in history.
+*.mp4
+*.zip
+
+# A local copy of the portfolio site, kept here only to test the sub-path build
+# against the real host. 148MB, and nothing in this repo references it.
+public/_pf/
