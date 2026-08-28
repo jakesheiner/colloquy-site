@@ -1,6 +1,7 @@
 import './style.css';
 import { CLIP_URL } from './clip.js';
 import { readDriveTrack } from './drives.js';
+import { publicUrl } from './base.js';
 
 // The runtime is the Colloquy scene studio's own clip player (three.js inlined),
 // vendored into `public/vendor/` and served from our own origin. It used to be
@@ -18,7 +19,7 @@ import { readDriveTrack } from './drives.js';
 // way it already treated the studio's absolute URL. (A bare `/vendor/...` gets
 // pulled through Vite's module transform, which trips over the Node-only
 // `import("node:zlib")` fallback the browser path never reaches.)
-const PLAYER_MODULE = new URL('/vendor/colloquy-clip-player.js', location.origin).href;
+const PLAYER_MODULE = new URL(publicUrl('vendor/colloquy-clip-player.js'), location.origin).href;
 
 // The two figures, in two colours: magenta for the three females, blue for the
 // males and the beam they ride.
@@ -245,6 +246,116 @@ const GLOW = {
   emissiveIntensity: 0.11,
 };
 
+/**
+ * The beam itself — the light that goes out of a male and comes back off a
+ * female's mirror. Widths are in the piece's own units, inches.
+ *
+ * **One colour, both legs, because it is one beam.** The light coming back is
+ * the light that went out — only its angle has changed, and that angle is the
+ * whole message. Green because the page's other two hues are already spoken
+ * for: blue is him, magenta is her, and the thing travelling between them
+ * belongs to neither, so a third hue keeps it from reading as either one's
+ * property.
+ *
+ * Neon green, and the cost of that is worth writing down so nobody "fixes" it
+ * later. On a white page nothing can read as bright, because the page is
+ * already brighter — so a neon colour has only its hue to carry it, not its
+ * luminance. Measured: `#39ff14` composites to a 1.36:1 contrast ratio against
+ * the page, where the deeper green it replaced sat at 3.51:1. The line is a
+ * highlighter stroke rather than an inked one, and at the wide shot, where the
+ * core is about three pixels, that is close to the floor. If it ever needs to
+ * hold up better, the smallest change that keeps the neon look is to leave the
+ * core as it is and give the motes a deeper green of their own, so the stroke
+ * gains an edge without losing its centre.
+ *
+ * **Drawn as a line, not a shaft.** The core is a third of an inch against an
+ * 11.5in mirror plate, so it reads as a ruled line between the two bodies
+ * rather than as a volume of light. The spill is only four times that: enough
+ * to keep the line from aliasing when the wide shot puts it at two or three
+ * pixels, not enough to turn it back into a beam of glow.
+ *
+ * **A leg that ends in mid-air fades out; a leg that ends on a surface does
+ * not.** This is the difference between a laser and a floating stick, and it is
+ * not a blanket effect — it is which end the leg has. The out leg lands on her
+ * mirror, and light arriving at a surface stops there, hard; fading it short of
+ * the plate would read as the beam failing to reach her. The return leg is the
+ * one hanging in the room, and so is the out leg during the seconds before he
+ * finds her, and those are the ends that dissipate. `fadeFrom` holds the leg at
+ * full for its first half and then runs a smoothstep to nothing, which is why
+ * the leg is cut into `segments` quads rather than being the single one it was:
+ * the falloff is carried on vertex alpha, and a quad has nothing between its
+ * two ends to carry a curve.
+ *
+ * **Nothing here is additive.** On a white page an additive beam is arithmetic
+ * on 255 and draws nothing at all — the same reason the shells' glow had to
+ * become emissive rather than a halo (see GLOW). These are ordinary translucent
+ * ribbons: a faint wide one for the spill and a strong narrow one for the core.
+ *
+ * `spread` is how much wider a leg is where it lands than where it leaves —
+ * the light source's own cone is 45°, which over 30in would be a wedge rather
+ * than a beam, so this is a legibility number, not a measured one.
+ */
+const BEAM = {
+  colour: 0x39ff14,
+  coreWidth: 0.3,
+  coreOpacity: 0.95,
+  spread: 1.5,
+  /**
+   * The glow, as a field of motes hanging in the beam rather than a sleeve
+   * wrapped round it.
+   *
+   * A scattered field is what a beam in air actually looks like — you never see
+   * the beam, you see what is floating in it — and on a white page it has the
+   * further advantage of covering far less area than a sleeve did, so the same
+   * impression costs less fill.
+   *
+   * **The field is fixed in the beam's own frame, not re-scattered per frame.**
+   * Each mote is a `(t, angle, radius)` triple generated once from a seeded
+   * xorshift and mapped into world space every frame, so the motes ride the beam
+   * as it swings instead of boiling. A fresh scatter each frame would read as
+   * television static.
+   *
+   * `bias` crowds them towards the axis — `r = radius * u ** bias`, so above 1
+   * the field is dense at the core and thin at the edge, which is both how
+   * scattering falls off and what keeps the hairline core from aliasing at the
+   * wide shot now that the sleeve is gone.
+   */
+  motes: {
+    count: 90,
+    radius: 2.2,
+    bias: 2.2,
+    size: [0.09, 0.26],
+    opacity: [0.22, 0.7],
+    // How much brighter and fatter a mote gets at the peak of a flare.
+    flareGain: 1.1,
+  },
+  // How far along a leg that ends in mid-air the fade begins, and how many
+  // quads the core is cut into to carry it. A leg that ends *on* something does
+  // not fade at all — see `writeRibbon`. The motes obey the same curve.
+  fadeFrom: 0.45,
+  segments: 8,
+  /**
+   * The flare, each time his sensors catch the reflection.
+   *
+   * It swells rather than brightens, and that is forced rather than chosen: the
+   * colour is already at full saturation and the page is already white, so
+   * there is nowhere brighter for a beam to go. Width and bloom are the only
+   * levers left, so the pulse widens the core and swells the mote field — the
+   * motes brighten, fatten and push further off the axis, which reads as a puff
+   * of light going through the field rather than a line getting thicker.
+   *
+   * Its timing is the clip's — see `flare` in `src/drives.js`, which hangs an
+   * envelope off the rising edges of the simulation's own
+   * `sense_reflected_light`. Both legs flare together: the exchange registering
+   * is one event, and chasing a pulse along the path would be a light-speed
+   * conceit at thirty inches.
+   */
+  pulse: { width: 2.2 },
+  // Held off the surfaces it starts and ends on, or the quad's own tip
+  // z-fights with the mirror plate and the lamp ring it is touching.
+  clearance: 0.35,
+};
+
 const stage = document.getElementById('stage');
 const errorEl = document.getElementById('stage-error');
 // The platform the text sits on: held still over the scene, and the scroll
@@ -269,6 +380,7 @@ function fail(message) {
 }
 
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
+const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
 
 /**
  * Monotone cubic (Fritsch–Carlson) interpolation through the keyframes.
@@ -496,6 +608,7 @@ function paintBodies() {
     // can catch two bodies out of five and frame the wide shot around them.
     demo = null;
     baked = false;
+    exchange = null;
   }
   return painted;
 }
@@ -517,6 +630,9 @@ const UNIT_RADIUS = 10;
 // zone at that point.
 let demo = null;
 let baked = false;
+// The two ends of the beam — which groups are lamps and which are mirrors. Also
+// measured off `bodies`, so it goes when they do. See *The beam*.
+let exchange = null;
 
 /** World position of each unit, averaged over its own scene-graph nodes. */
 function unitAnchors() {
@@ -616,7 +732,7 @@ const player = await mod.createClipPlayer({
   // that carry the encounter. Everything else the clip names (armature, plinth,
   // splodges, drive gauges, world base) is deliberately absent from the map and
   // reports MODEL_NOT_FOUND, which is how it stays undrawn.
-  assetManifestUrl: '/assets.json',
+  assetManifestUrl: publicUrl('assets.json'),
   viewConfig: {
     kind: 'view',
     name: 'Colloquy explainer',
@@ -1744,6 +1860,11 @@ viewer.renderer.render = (scene, camera) => {
   // are solved against the piece as the recording has it. A bake caught during
   // the demonstration must not frame the demonstration's pose.
   const posed = camera === viewer.camera && setDemoPose(pinProgress());
+  // After the pose, not before: the beam is solved off where the bodies are
+  // about to be drawn, and the demonstration moves them. (It is dark through the
+  // whole demonstration anyway — the clip is parked at its first tick and nobody
+  // is transmitting there — but that is the clip's doing, not a rule here.)
+  if (camera === viewer.camera) updateBeam();
   drawScene(scene, camera);
   if (posed) clearDemoPose();
 };
@@ -2217,6 +2338,11 @@ const driveTrack = readDriveTrack(player.getRecording());
 const driveRows = [];
 // One scratch array, refilled each frame rather than reallocated.
 const driveReading = [];
+// Where the recording's head is, as a fraction of the clip.
+let clipHead = 0;
+// The panel the rows live in when they are not out over the piece. Held so a
+// row that has been lifted can be put back — see *The stat bars*.
+let drivePanel = null;
 
 if (driveTrack) {
   const panel = document.createElement('div');
@@ -2230,6 +2356,15 @@ if (driveTrack) {
     const row = document.createElement('div');
     row.className = 'drive-row';
     row.dataset.side = unit.side;
+    // Its own cell, stated rather than auto-placed — and the *row* as much as
+    // the column, which is the half that is easy to miss. A row that lifts out
+    // to hang over its body leaves the panel entirely and comes back at the end
+    // of the DOM order, and auto-placement never goes backwards: with only the
+    // column pinned, a returning card finds the cursor already past its column
+    // and drops onto a second grid row, sitting half a panel below the three
+    // that never left. Pinning both puts it back exactly where it was.
+    row.style.gridColumn = String(driveRows.length + 1);
+    row.style.gridRow = '1';
     row.innerHTML =
       '<span class="drive-dot"></span>' +
       `<span class="drive-name">${unit.short}</span>` +
@@ -2246,12 +2381,27 @@ if (driveTrack) {
       el: row,
       // Last painted values, so a frame that changes nothing writes nothing.
       last: { o: -1, p: -1, state: '' },
+      // Whether this row is currently out over the piece, and where it was last
+      // put, so a frame that does not move it writes no transform.
+      // The flight. `holds` is where it wants to be, `lift` where it has got to
+      // — 0 in the panel, 1 over the body — and `flying` whether it is currently
+      // out of the grid and positioned by hand.
+      holds: false,
+      lift: 0,
+      flying: false,
+      aimed: false,
+      placedAt: '',
+      // Its cell, relative to the panel, and the two ends of the flight.
+      home: { x: 0, y: 0, w: 132, h: 39 },
+      anchor: { x: 0, y: 0 },
+      over: { x: 0, y: 0 },
     });
   }
 
   // The "spent" line, at the drive lower limit, on every bar at once.
   panel.style.setProperty('--spent-at', `${(driveTrack.lowerMark * 100).toFixed(2)}%`);
   driveSlot.append(panel);
+  drivePanel = panel;
 
   // Held back until the line that explains it, if the script marks one. Hidden
   // here rather than on the first frame, or the bars show for a moment on load
@@ -2263,6 +2413,9 @@ if (driveTrack) {
 
 function updateDrives(progress) {
   if (!driveTrack) return;
+  // Kept for the stat bars, which run every frame rather than only when the
+  // scroll has moved, and need to ask the recording where its window is.
+  clipHead = progress;
   const reading = driveTrack.read(progress, driveReading);
   for (let i = 0; i < driveRows.length; i++) {
     const row = driveRows[i];
@@ -2314,6 +2467,836 @@ function updateSignals(reading) {
     body.group.traverse((mesh) => {
       if (mesh.isMesh) mesh.material.emissiveIntensity = wanted;
     });
+  }
+}
+
+// --- the beam ----------------------------------------------------------------
+
+/**
+ * The light that goes out of a male and comes back off a female's mirror.
+ *
+ * This is the encounter itself, and until now the page only implied it: his ring
+ * lit, her LEDs answered, and the thirty inches between them stayed empty. The
+ * clip carries the beam — `act_transmitting_energetic_beam` on his transmitter
+ * is true for exactly as long as it is lit (see `drives.js`) — but no geometry
+ * for it. The player's own `showBeamDiagram` is an instrument, drawn against
+ * black with the rest of the rig, so this is a new model.
+ *
+ * **The path is solved from the recording, not drawn towards her.** Every frame:
+ * take where his lamp is and which way it points, intersect that ray with each
+ * mirror in the room, and reflect off the one it actually strikes. Both ends
+ * come out of the clip's own joint angles, by way of the meshes the player has
+ * already posed, so nothing here decides where the light goes.
+ *
+ * That is worth insisting on, because the reflection is the whole mechanism and
+ * aiming it by hand would throw it away. She has no other voice: the only thing
+ * she does is nod the mirror, and a mirror tilted by θ turns the return by 2θ.
+ * So the beam leaves him, lands dead centre on her plate, and comes back
+ * *sweeping* — up past his upper sensors, down past his lower ones — and that
+ * sweep is her half of the conversation. Measured over the engagement in this
+ * clip: his aim settles to within 0.65° of her mirror's centre and the strike
+ * lands 0.13–0.37in off the middle of an 11.5in plate, while her tilt runs ±22°
+ * and swings the return through 60in of travel at his end.
+ *
+ * Two things follow from solving it rather than posing it, and both are the
+ * recording being honest. He does not start on target: the beam lights at tick
+ * 1634 and does not touch her plate until 1679 — two and a half seconds in which
+ * it swings across the room and slides onto the mirror. And where the ray misses
+ * the plate there is no return leg at all, because there is nothing to bounce
+ * off.
+ */
+
+// Scratch, so a per-frame solve does not allocate a dozen vectors every frame.
+const _lamp = new Vec();
+const _shine = new Vec();
+const _plate = new Vec();
+const _face = new Vec();
+const _inPlane = new Vec();
+const _strike = new Vec();
+const _bestStrike = new Vec();
+const _bestFace = new Vec();
+const _bounce = new Vec();
+const _offset = new Vec();
+const _legFrom = new Vec();
+const _legTo = new Vec();
+const _along = new Vec();
+const _across = new Vec();
+const _midpoint = new Vec();
+const _stationA = new Vec();
+const _stationB = new Vec();
+const _quadA = new Vec();
+const _quadB = new Vec();
+const _spin = new Vec();
+const _moteAt = new Vec();
+const _moteRight = new Vec();
+const _moteUp = new Vec();
+
+/**
+ * A loaded group's own bounds, in the group's local space, measured once.
+ *
+ * The parts are modelled in place — the lamp ring's OBJ sits at (−0.125, −2.5,
+ * −40.5) in its unit's coordinates, not at the origin — so a group's *position*
+ * is the body's pivot and says nothing about where the ring is. Its geometry
+ * does. Rigid inside the group, so this is measured on the first frame that
+ * wants it and kept; `paintBodies` throws the whole group away if the clip ever
+ * hands us different meshes.
+ */
+function localBounds(group) {
+  if (group.userData.localBounds !== undefined) return group.userData.localBounds;
+  group.updateWorldMatrix(true, true);
+  const toLocal = new (group.matrixWorld.constructor)().copy(group.matrixWorld).invert();
+  const at = new Vec();
+  let min = null;
+  let max = null;
+  group.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    const box = mesh.geometry.boundingBox;
+    for (const x of [box.min.x, box.max.x]) {
+      for (const y of [box.min.y, box.max.y]) {
+        for (const z of [box.min.z, box.max.z]) {
+          at.set(x, y, z).applyMatrix4(mesh.matrixWorld).applyMatrix4(toLocal);
+          if (min === null) {
+            min = at.clone();
+            max = at.clone();
+          } else {
+            min.min(at);
+            max.max(at);
+          }
+        }
+      }
+    }
+  });
+  const bounds =
+    min === null
+      ? null
+      : {
+          centre: min.clone().add(max).multiplyScalar(0.5),
+          half: max.sub(min).multiplyScalar(0.5),
+        };
+  group.userData.localBounds = bounds;
+  return bounds;
+}
+
+/** Column `column` of a world matrix — one of its three axes — as a unit vector. */
+function worldAxis(matrix, column, out) {
+  const e = matrix.elements;
+  return out.set(e[column * 4], e[column * 4 + 1], e[column * 4 + 2]).normalize();
+}
+
+// One set of ribbons per male, built the first time his beam lights.
+const beams = new Map();
+
+/**
+ * One leg of the beam, as a quad kept broadside to the camera.
+ *
+ * A ribbon rather than a tube: a tube is a dozen times the geometry to look the
+ * same from every angle except the one that matters, and the page ends on a plan
+ * view where a tube's silhouette is exactly the ribbon's anyway. Two of them
+ * nested — a wide faint one for the spill, a narrow strong one for the core —
+ * because the alternative, a soft edge, wants per-vertex alpha, and the three.js
+ * inside the player is whatever version it was built against.
+ */
+function makeBeamMesh(source, colour, opacity, order, quads) {
+  const Geometry = source.geometry.constructor;
+  const Attribute = source.geometry.attributes.position.constructor;
+  const Mesh = source.constructor;
+
+  const vertices = quads * 6;
+  const geometry = new Geometry();
+  geometry.setAttribute('position', new Attribute(new Float32Array(vertices * 3), 3));
+  // Never read — the material takes no light — but three.js expects the
+  // attribute to exist on a mesh drawn with a lit shader.
+  const normals = new Float32Array(vertices * 3);
+  for (let i = 2; i < normals.length; i += 3) normals[i] = 1;
+  geometry.setAttribute('normal', new Attribute(normals, 3));
+  // Four components, and that is the whole point: three.js only compiles the
+  // per-vertex *alpha* path (`USE_COLOR_ALPHA`) when the colour attribute has
+  // an itemSize of 4. RGB is left at white so the black albedo stays black —
+  // vertex colour multiplies the diffuse, not the emissive — while the alpha
+  // multiplies the finished fragment, emissive included, which is what fades
+  // the beam out. `writeRibbon` writes the alpha; the colours never change.
+  const colours = new Float32Array(vertices * 4).fill(1);
+  geometry.setAttribute('color', new Attribute(colours, 4));
+
+  const material = source.material.clone();
+  // Unlit, by way of a black albedo: nothing the rig does reaches it, so what
+  // is drawn is the emissive colour flat. A beam is a light, and shading it
+  // would turn it dark on the side away from the key.
+  material.color.setHex(0x000000);
+  material.emissive?.setHex(colour);
+  material.emissiveIntensity = 1;
+  material.specular?.setHex(0x000000);
+  material.shininess = 0;
+  material.map = null;
+  material.transparent = true;
+  material.opacity = opacity;
+  // Depth *test* on, so a body in front still hides the beam behind it; depth
+  // *write* off, or the four ribbons punch holes in each other where they cross
+  // and the core disappears inside its own halo.
+  material.depthWrite = false;
+  // DoubleSide. The module inlines three.js and exports no constants, so this is
+  // the raw enum (0 front, 1 back, 2 double) — the same reason `shadowMap.type`
+  // is written as 3 above.
+  material.side = 2;
+  material.vertexColors = true;
+  material.needsUpdate = true;
+
+  const mesh = new Mesh(geometry, material);
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  // After the shells, which are themselves transparent: left to the sort, a
+  // female's flank can land in front of the beam that is crossing her mirror.
+  mesh.renderOrder = order;
+  // Rewritten every frame. Re-deriving the bounds so the frustum can maybe skip
+  // four draw calls costs more than the draws.
+  mesh.frustumCulled = false;
+  mesh.visible = false;
+  // Deliberately not marked `painted`: `firstPaintableMesh` clones the ground's
+  // material off whatever it finds first, and a beam is a terrible floor.
+  viewer.scene.add(mesh);
+  return mesh;
+}
+
+/**
+ * Where the motes sit, in the beam's own coordinates: `t` along it, `r` and an
+ * angle across it, plus each one's own size and strength.
+ *
+ * Generated once from a seeded xorshift rather than `Math.random`, so a reload
+ * draws the identical field — the same commitment the baked shots and the
+ * per-tick flare envelope make, that a given place on the page always looks the
+ * same.
+ */
+const MOTES = (() => {
+  let seed = 0x9e3779b9;
+  const rand = () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return (seed >>> 0) / 4294967296;
+  };
+  const [minSize, maxSize] = BEAM.motes.size;
+  const [minAlpha, maxAlpha] = BEAM.motes.opacity;
+  const field = [];
+  for (let i = 0; i < BEAM.motes.count; i++) {
+    const angle = rand() * Math.PI * 2;
+    const r = Math.pow(rand(), BEAM.motes.bias);
+    field.push({
+      // Stratified along the beam, jittered inside its own slice, so the field
+      // is even end to end instead of clumping the way pure noise does.
+      t: (i + rand()) / BEAM.motes.count,
+      r,
+      cos: Math.cos(angle),
+      sin: Math.sin(angle),
+      size: minSize + rand() * (maxSize - minSize),
+      // Fainter further out, on top of the density bias — the two together are
+      // what make it read as falloff rather than as confetti.
+      alpha: (minAlpha + rand() * (maxAlpha - minAlpha)) * (1 - 0.55 * r),
+    });
+  }
+  return field;
+})();
+
+/**
+ * Scatter one leg's motes: a billboard each, in a tube of `radius` about the
+ * axis, obeying the same end-fade as the core and swelling with `flare`.
+ */
+function writeMotes(mesh, from, to, radius, fades, flare) {
+  _along.copy(to).sub(from);
+  const length = _along.length();
+  if (length < 1e-3) {
+    mesh.visible = false;
+    return;
+  }
+  _along.multiplyScalar(1 / length);
+  // Two axes across the beam — the ribbon only needs one, because it is flat,
+  // but the motes hang in a tube and need a whole plane to be placed in.
+  _across.copy(viewer.camera.position).sub(from).cross(_along);
+  if (_across.lengthSq() < 1e-10) {
+    mesh.visible = false;
+    return;
+  }
+  _across.normalize();
+  _spin.copy(_along).cross(_across);
+
+  // The camera's own right and up, so every mote faces the reader square on.
+  // One pair for the whole field: at this dot size the parallax across a leg is
+  // far under a pixel, and solving it per mote would be ninety cross products a
+  // frame for nothing.
+  const e = viewer.camera.matrixWorld.elements;
+  _moteRight.set(e[0], e[1], e[2]).normalize();
+  _moteUp.set(e[4], e[5], e[6]).normalize();
+
+  const swell = 1 + 0.6 * flare;
+  const gain = 1 + BEAM.motes.flareGain * flare;
+  const p = mesh.geometry.attributes.position;
+  const c = mesh.geometry.attributes.color;
+  const a = p.array;
+  const alpha = c.array;
+  let v = 0;
+
+  for (let i = 0; i < MOTES.length; i++) {
+    const mote = MOTES[i];
+    const strength = Math.min(
+      1,
+      mote.alpha * gain * (fades ? beamFalloff(mote.t) : 1)
+    );
+    const off = mote.r * radius;
+    _moteAt.copy(_along).multiplyScalar(length * mote.t).add(from);
+    _moteAt.addScaledVector(_across, off * mote.cos);
+    _moteAt.addScaledVector(_spin, off * mote.sin);
+
+    const half = mote.size * swell * 0.5;
+    const rx = _moteRight.x * half;
+    const ry = _moteRight.y * half;
+    const rz = _moteRight.z * half;
+    const ux = _moteUp.x * half;
+    const uy = _moteUp.y * half;
+    const uz = _moteUp.z * half;
+    const corner = (sx, sy) => {
+      a[v * 3] = _moteAt.x + rx * sx + ux * sy;
+      a[v * 3 + 1] = _moteAt.y + ry * sx + uy * sy;
+      a[v * 3 + 2] = _moteAt.z + rz * sx + uz * sy;
+      alpha[v * 4 + 3] = strength;
+      v += 1;
+    };
+    corner(-1, -1);
+    corner(1, -1);
+    corner(1, 1);
+    corner(-1, -1);
+    corner(1, 1);
+    corner(-1, 1);
+  }
+
+  p.needsUpdate = true;
+  c.needsUpdate = true;
+  mesh.visible = true;
+}
+
+function beamFor(unit) {
+  const built = beams.get(unit);
+  if (built) return built;
+  const source = firstPaintableMesh();
+  if (!source) return null;
+  // The motes carry their strength per vertex, so their material sits at full
+  // opacity and `writeMotes` does all the dimming; the cores keep theirs on the
+  // material, which never changes.
+  const parts = {
+    outMotes: makeBeamMesh(source, BEAM.colour, 1, 1, BEAM.motes.count),
+    outCore: makeBeamMesh(source, BEAM.colour, BEAM.coreOpacity, 2, BEAM.segments),
+    backMotes: makeBeamMesh(source, BEAM.colour, 1, 1, BEAM.motes.count),
+    backCore: makeBeamMesh(source, BEAM.colour, BEAM.coreOpacity, 2, BEAM.segments),
+  };
+  beams.set(unit, parts);
+  return parts;
+}
+
+function hideBeam(unit) {
+  const parts = beams.get(unit);
+  if (!parts) return;
+  parts.outMotes.visible = false;
+  parts.outCore.visible = false;
+  parts.backMotes.visible = false;
+  parts.backCore.visible = false;
+}
+
+/** How much of the beam is left `t` of the way along a leg that ends in mid-air. */
+function beamFalloff(t) {
+  if (t <= BEAM.fadeFrom) return 1;
+  const s = (t - BEAM.fadeFrom) / (1 - BEAM.fadeFrom);
+  return 1 - s * s * (3 - 2 * s); // smoothstep, so it leaves full width smoothly
+}
+
+/**
+ * Lay one leg down the ribbon: `width` where it leaves, `width * BEAM.spread`
+ * where it arrives, and — if `fades` — dissipating over its last stretch
+ * instead of stopping dead.
+ *
+ * One `_across` for the whole leg rather than one per station. The leg is
+ * straight, so it lies in a single plane; solving the facing per station would
+ * twist the ribbon along its own length for nothing.
+ */
+function writeRibbon(mesh, from, to, width, fades) {
+  _along.copy(to).sub(from);
+  const length = _along.length();
+  if (length < 1e-3) {
+    mesh.visible = false;
+    return;
+  }
+  _along.multiplyScalar(1 / length);
+  // Across the beam and across the line of sight. Degenerate only when the
+  // camera is looking straight down the beam, and there is nothing to draw then.
+  _midpoint.copy(from).add(to).multiplyScalar(0.5);
+  _across.copy(viewer.camera.position).sub(_midpoint).cross(_along);
+  if (_across.lengthSq() < 1e-10) {
+    mesh.visible = false;
+    return;
+  }
+  _across.normalize();
+
+  const near = width * 0.5;
+  const far = near * BEAM.spread;
+  const p = mesh.geometry.attributes.position;
+  const c = mesh.geometry.attributes.color;
+  const a = p.array;
+  const alpha = c.array;
+
+  // One station per segment boundary, reused as the far end of one quad and the
+  // near end of the next.
+  let v = 0;
+  const station = (t) => {
+    const half = near + (far - near) * t;
+    const at = length * t;
+    _stationA.copy(_along).multiplyScalar(at).add(from);
+    _stationB.copy(_across).multiplyScalar(half).add(_stationA);
+    _stationA.addScaledVector(_across, -half);
+    return fades ? beamFalloff(t) : 1;
+  };
+  const put = (point, opacity) => {
+    a[v * 3] = point.x;
+    a[v * 3 + 1] = point.y;
+    a[v * 3 + 2] = point.z;
+    alpha[v * 4 + 3] = opacity;
+    v += 1;
+  };
+
+  for (let i = 0; i < BEAM.segments; i++) {
+    const t0 = i / BEAM.segments;
+    const t1 = (i + 1) / BEAM.segments;
+    const o0 = station(t0);
+    _quadA.copy(_stationA);
+    _quadB.copy(_stationB);
+    const o1 = station(t1);
+    put(_quadA, o0);
+    put(_quadB, o0);
+    put(_stationB, o1);
+    put(_quadA, o0);
+    put(_stationB, o1);
+    put(_stationA, o1);
+  }
+
+  p.needsUpdate = true;
+  c.needsUpdate = true;
+  mesh.visible = true;
+}
+
+/** Which loaded groups are lamps and which are mirrors, off the current `bodies`. */
+function buildExchange() {
+  const lamps = bodies.filter((body) => body.part?.name === 'male lightsource ring' && body.unit);
+  const mirrors = bodies.filter((body) => body.part?.name === 'female mirror');
+  if (lamps.length === 0 || mirrors.length === 0) return null;
+  return { lamps, mirrors };
+}
+
+/**
+ * Solve and lay the beam for whichever males are transmitting, this frame.
+ *
+ * Run from inside the render wrapper rather than from `updateDrives`, and after
+ * the demonstration has posed the bodies, for the same reason `applyFraming`
+ * lives there: what it measures has to be the piece as it is about to be drawn.
+ * The ribbons face the camera, and the camera is not settled until `applyFraming`
+ * has run.
+ */
+function updateBeam() {
+  if (!driveTrack || bodies.length === 0) return;
+  if (!exchange) exchange = buildExchange();
+  if (!exchange) return;
+
+  for (const lamp of exchange.lamps) {
+    const index = driveTrack.units.findIndex((unit) => unit.id === lamp.unit);
+    const reading = index === -1 ? null : driveReading[index];
+    if (!reading?.beaming) {
+      hideBeam(lamp.unit);
+      continue;
+    }
+    const parts = beamFor(lamp.unit);
+    const ring = localBounds(lamp.group);
+    if (!parts || !ring) continue;
+
+    lamp.group.updateWorldMatrix(true, false);
+    _lamp.copy(ring.centre).applyMatrix4(lamp.group.matrixWorld);
+    // He shines out of the face of his plate, along the ring's own −Y. The
+    // clip's `light_source` actuator is the same axis said differently: it sits
+    // beside the ring rotated 90° about X, which lands its +Z there.
+    worldAxis(lamp.group.matrixWorld, 1, _shine).negate();
+
+    // The nearest mirror the ray actually strikes, and — for the stretch where
+    // it strikes none — how far away the nearest mirror is, so the ray is drawn
+    // at about the length it will have when it lands.
+    let strikeAt = Infinity;
+    let nearest = Infinity;
+    let struck = false;
+    for (const mirror of exchange.mirrors) {
+      const plate = localBounds(mirror.group);
+      if (!plate) continue;
+      mirror.group.updateWorldMatrix(true, false);
+      _plate.copy(plate.centre).applyMatrix4(mirror.group.matrixWorld);
+      nearest = Math.min(nearest, _plate.distanceTo(_lamp));
+
+      // The plate is a thin slab modelled flat in its own Y, so its face is the
+      // group's Y axis — taken towards the light, because a mirror reflects on
+      // the side the light arrives from.
+      worldAxis(mirror.group.matrixWorld, 1, _face);
+      if (_face.dot(_shine) > 0) _face.negate();
+      const facing = _shine.dot(_face);
+      if (facing > -0.05) continue; // edge-on: nothing to bounce off
+      const distance = _offset.copy(_plate).sub(_lamp).dot(_face) / facing;
+      if (distance <= 0 || distance >= strikeAt) continue;
+
+      _strike.copy(_shine).multiplyScalar(distance).add(_lamp);
+      _offset.copy(_strike).sub(_plate);
+      // On the plate, or past its edge? Its two in-plane axes are the group's
+      // own X and Z, and the half-sizes come off the geometry rather than from
+      // the 11.5in in the scene graph, so a re-cut mirror still bounds itself.
+      if (Math.abs(_offset.dot(worldAxis(mirror.group.matrixWorld, 0, _inPlane))) > plate.half.x) continue;
+      if (Math.abs(_offset.dot(worldAxis(mirror.group.matrixWorld, 2, _inPlane))) > plate.half.z) continue;
+
+      strikeAt = distance;
+      struck = true;
+      _bestStrike.copy(_strike);
+      _bestFace.copy(_face);
+    }
+
+    // Only flare while there is actually a return leg on screen. The clip's
+    // sensor flag can read true across the stretch where he is still swinging
+    // onto her and the ray is landing on nothing — pulsing a beam that visibly
+    // has no reflection would be the one place this could contradict itself.
+    const flare = struck ? reading.flare : 0;
+    const swell = 1 + (BEAM.pulse.width - 1) * flare;
+
+    const reach = struck ? strikeAt : nearest;
+    if (!(reach > BEAM.clearance * 3) || !Number.isFinite(reach)) {
+      hideBeam(lamp.unit);
+      continue;
+    }
+
+    // Out. Held off both ends, or the quad's tip z-fights with the ring it
+    // leaves and the plate it lands on.
+    _legFrom.copy(_shine).multiplyScalar(BEAM.clearance).add(_lamp);
+    _legTo.copy(_shine).multiplyScalar(reach - BEAM.clearance).add(_lamp);
+    // It fades only while it is landing on nothing. Once it is on her plate the
+    // light stops there, and a beam that faded out short of the mirror would
+    // read as one that never reached her.
+    writeRibbon(parts.outCore, _legFrom, _legTo, BEAM.coreWidth * swell, !struck);
+    writeMotes(parts.outMotes, _legFrom, _legTo, BEAM.motes.radius * swell, !struck, flare);
+
+    if (!struck) {
+      parts.backMotes.visible = false;
+      parts.backCore.visible = false;
+      continue;
+    }
+
+    // Back, at the mirror angle. Drawn the same length as the leg that arrived,
+    // so its tip rides a circle of that radius: it reaches his lamp exactly when
+    // the mirror is square to him, and the gap between tip and lamp is then the
+    // real miss rather than a length chosen to look right.
+    _bounce.copy(_bestFace).multiplyScalar(-2 * _shine.dot(_bestFace)).add(_shine).normalize();
+    _legFrom.copy(_bounce).multiplyScalar(BEAM.clearance).add(_bestStrike);
+    _legTo.copy(_bounce).multiplyScalar(reach).add(_bestStrike);
+    // Always fades: the return ends in open air by definition — it is drawn the
+    // length of the leg that arrived, so its tip reaches his lamp only when her
+    // mirror is square to him, and lands in the room otherwise.
+    writeRibbon(parts.backCore, _legFrom, _legTo, BEAM.coreWidth * swell, true);
+    writeMotes(parts.backMotes, _legFrom, _legTo, BEAM.motes.radius * swell, true, flare);
+  }
+}
+
+// --- the stat bars -----------------------------------------------------------
+
+/**
+ * Around an encounter, the two bodies' rows leave the readout and go and hang
+ * over the bodies themselves.
+ *
+ * The readout under the frame is a table: five units, side by side, in a fixed
+ * order. That is the right shape for comparing them and the wrong shape for the
+ * one moment when two of them stop being entries in a list and become a pair —
+ * you end up reading a row, finding the name, and then hunting the piece for
+ * which shape it belongs to. Over the bodies, that lookup disappears.
+ *
+ * It is the *same row*, moved, not a copy: the element is appended to the body
+ * and put back afterwards. A second set of bars fed from the same reading would
+ * have been easier and would have been two things to keep honest instead of
+ * one — the same argument as `updateSignals` reading the state the readout is
+ * already showing rather than deciding for itself.
+ *
+ * Moved to `document.body` rather than left in place with `position: fixed`,
+ * because fixed positioning is only viewport-relative until some ancestor grows
+ * a transform or a filter, and the sticky column it lives in is exactly the kind
+ * of thing that acquires one. Re-appending is safe in any order: each row states
+ * its own `grid-column`, so it lands back in its own cell whatever the DOM order
+ * is by then.
+ */
+const STAT = {
+  // Clear of the body's highest point, in CSS pixels.
+  lift: 16,
+  // And clear of the frame's own edges, so a body that swings to the top of the
+  // shot does not push its card out of the picture.
+  margin: 8,
+  // The card's own horizontal padding, which the stylesheet adds outside the
+  // cell width — `--stat-pad-x` there is this number. Only needed so the clamp
+  // above knows how far the card actually overhangs its content.
+  padX: 9,
+  /**
+   * How long a card takes to fly between the readout and the piece, in ms.
+   *
+   * **Timed, not scrolled**, which is the one place on this page that is true.
+   * The camera, the flare and the beam are all pure functions of scroll
+   * position, and the argument for that is strong: the same place on the page
+   * always looks the same. But those are *states* — there is a right answer for
+   * every scroll position. This is a **transition between two resting places**,
+   * and a transition has to finish. Hung off scroll, a reader who stops mid-way
+   * leaves a card parked half-way between the panel and the body, which does not
+   * read as a slow animation, it reads as a bug.
+   */
+  fly: 340,
+};
+
+/**
+ * Where each row sits when it is at home, measured off the panel while every row
+ * is in it.
+ *
+ * A flying card is positioned in viewport coordinates by a transform, so both
+ * ends of its flight have to be expressed that way — including the end that is a
+ * grid cell. Recorded relative to the panel rather than the viewport because the
+ * panel is sticky and moves as the pin enters and leaves; the offsets do not.
+ *
+ * Only ever measured with all five rows home. There is nothing to measure
+ * otherwise, and it does not matter: the numbers only change on a resize, and a
+ * resize in the middle of a two-second engagement is not worth carrying code
+ * for. The last good measurement stands until they all land.
+ */
+let statMeasuredAt = -1;
+// When the flights were last stepped on, so the step is a real elapsed time
+// rather than a per-frame constant that would run at whatever the refresh is.
+let statFlewAt = 0;
+
+function measureStatHome(atWidth) {
+  if (!drivePanel || driveRows.some((row) => row.flying)) return;
+  const panel = drivePanel.getBoundingClientRect();
+  if (panel.width <= 0) return;
+  for (const row of driveRows) {
+    const box = row.el.getBoundingClientRect();
+    // The card is anchored by its bottom centre, so home is stated that way too.
+    row.home.x = box.left - panel.left + box.width / 2;
+    row.home.y = box.top - panel.top + box.height;
+    row.home.w = box.width;
+    row.home.h = box.height;
+  }
+  statMeasuredAt = atWidth;
+  // The stylesheet builds the card's width off this, adding its own padding on
+  // top so the bars come out the length they were downstairs.
+  document.documentElement.style.setProperty('--stat-cell', `${driveRows[0].home.w}px`);
+}
+
+
+const _statCorner = new Vec();
+
+// The one group per unit worth measuring: its shell or its plate. Anchoring to
+// everything the unit owns would drag the box up to whatever the mirror or the
+// lamp armature is doing, which is not where the reader thinks the body is.
+const STAT_PART = { female: 'female shell body', male: 'male body' };
+
+/**
+ * Where a unit's card belongs, as a fraction of the canvas: centred on the body
+ * and level with its highest point.
+ *
+ * Every corner is projected and the topmost taken, rather than the top of the
+ * world box, because "up" on the screen is not "up" in the piece — the camera
+ * ends the pin looking straight down, and by then the highest corner in Z is
+ * somewhere in the middle of the shape.
+ */
+function unitAnchor(unit, side, out) {
+  const body = bodies.find(
+    (candidate) => candidate.unit === unit && candidate.part?.name === STAT_PART[side]
+  );
+  if (!body) return false;
+  const bounds = localBounds(body.group);
+  if (!bounds) return false;
+  body.group.updateWorldMatrix(true, false);
+
+  let top = Infinity;
+  let sumX = 0;
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        _statCorner
+          .set(
+            bounds.centre.x + sx * bounds.half.x,
+            bounds.centre.y + sy * bounds.half.y,
+            bounds.centre.z + sz * bounds.half.z
+          )
+          .applyMatrix4(body.group.matrixWorld)
+          .project(viewer.camera);
+        // Behind the camera: the projection folds through the origin and the
+        // numbers stop meaning anything.
+        if (_statCorner.z > 1) return false;
+        const y = -_statCorner.y * 0.5 + 0.5;
+        if (y < top) top = y;
+        sumX += _statCorner.x * 0.5 + 0.5;
+      }
+    }
+  }
+  out.x = sumX / 8;
+  out.y = top;
+  return true;
+}
+
+/** Put a row back in the readout — only ever called once its flight has run out. */
+function landRow(row) {
+  if (!row.flying) return;
+  row.flying = false;
+  row.lift = 0;
+  row.placedAt = '';
+  row.el.classList.remove('is-flying');
+  row.el.style.transform = '';
+  row.el.style.removeProperty('--lift');
+  if (drivePanel) drivePanel.append(row.el);
+}
+
+/** Put every card away at once, with no flight — the stage has gone. */
+function hideStatBars() {
+  for (const row of driveRows) {
+    row.holds = false;
+    landRow(row);
+  }
+}
+
+function updateStatBars() {
+  if (!driveTrack || driveRows.length === 0) return;
+  // One layout read a frame, shared by both cards. The stage is sticky, so this
+  // moves while the pin is entering and leaving and cannot be cached across
+  // frames.
+  const canvas = viewer.renderer.domElement.getBoundingClientRect();
+  const width = Math.round(canvas.width);
+  if (width !== statMeasuredAt) measureStatHome(width);
+
+  const now = performance.now();
+  // Clamped, because a tab that has been in the background hands back a gap of
+  // seconds, and a card should not teleport on the frame the reader comes back.
+  // A reader who has asked for less motion gets the card put where it belongs,
+  // with no flight. `stillMotion` is declared further down the file; it is a
+  // `const`, so it is live by the time any frame runs.
+  const step = stillMotion.matches
+    ? 1
+    : (statFlewAt === 0 ? 16 : Math.min(64, now - statFlewAt)) / STAT.fly;
+  statFlewAt = now;
+
+  /**
+   * Who belongs up there comes from the recording, not from this frame.
+   *
+   * `encounterAt` hands back every unit taking part in the encounter the
+   * playhead is inside — the whole run, padded at both ends, rather than
+   * whoever happens to be engaged on this tick. Two things follow, and both are
+   * the reason it is done in the reader rather than here (see `encounter` in
+   * `src/drives.js`).
+   *
+   * The set is **fixed for the duration**. The pair does not arrive or leave
+   * together — in the current clip she engages at tick 1595 and he joins at
+   * 1634, she lets go at 1915 and he holds on until 1955 — and the raised cards
+   * are what set the height they share, so a set that changed mid-encounter
+   * would jolt the survivor to a new level. It was doing exactly that.
+   *
+   * And it **opens before there is anything to see** and closes after. The bars
+   * rise while the two are still hunting, hold through the exchange, and stay a
+   * moment past the end of it, so the reader watches the drives climb into the
+   * encounter rather than meeting them mid-way.
+   */
+  const window = driveTrack.encounterAt(clipHead);
+
+  // First pass: where each body tops out.
+  for (let i = 0; i < driveRows.length; i++) {
+    const row = driveRows[i];
+    const unit = driveTrack.units[i];
+    // Anchors cost eight projections each, so they are only taken for a body
+    // that is either wanted up there or still on its way down.
+    row.aimed =
+      (((window >> i) & 1) === 1 || row.lift > 0) && bodies.length > 0
+        ? unitAnchor(unit.id, unit.side, row.anchor)
+        : false;
+  }
+
+  // Second pass: run each card's flight on, and find the height they share.
+  let level = -Infinity;
+  let flying = false;
+  for (let i = 0; i < driveRows.length; i++) {
+    const row = driveRows[i];
+    row.holds = ((window >> i) & 1) === 1 && row.aimed;
+    const target = row.holds ? 1 : 0;
+    row.lift = clamp(target, row.lift - step, row.lift + step);
+    if (row.lift <= 0) {
+      landRow(row);
+      continue;
+    }
+    flying = true;
+    // Screen y grows downward, so the largest is the lowest on screen. Taken
+    // over everything still in the air, not just what is engaged, so a pair on
+    // its way home keeps flying in formation.
+    if (row.aimed && row.anchor.y > level) level = row.anchor.y;
+  }
+  if (!flying) return;
+
+  const panel = drivePanel.getBoundingClientRect();
+
+  /**
+   * Third pass: place them.
+   *
+   * Each card keeps its own body's x and gives up its own body's y. Left to sit
+   * on its own crown, the male's card rides forty inches higher than hers — his
+   * plate reaches most of the way to the bar and her shell hangs well below it —
+   * and two readouts of the same thing at two different heights read as two
+   * unrelated labels rather than as a pair being compared. Levelled, they are a
+   * scoreboard. The cost is that his sometimes crops the top of his own plate,
+   * which is the cheaper of the two.
+   *
+   * Then the whole thing is interpolated back towards the cell it came out of by
+   * `lift`. The card is *fixed* for the whole flight, both ends of it — home is
+   * expressed as a viewport point rather than as a grid cell, so there is one
+   * kind of position throughout and nothing to hand over between.
+   */
+  for (const row of driveRows) {
+    if (row.lift <= 0) continue;
+
+    if (!row.flying) {
+      row.flying = true;
+      row.el.classList.add('is-flying');
+      document.body.append(row.el);
+    }
+
+    // Where it is going, if it is going anywhere: over its body, at the shared
+    // height, held inside the frame. A body that has swung behind the camera
+    // keeps whatever the card was last told, so a lost anchor cannot fling it.
+    if (row.aimed && level > -Infinity) {
+      const half = row.home.w / 2 + STAT.padX + STAT.margin;
+      row.over.x = clamp(
+        canvas.left + row.anchor.x * canvas.width,
+        canvas.left + half,
+        canvas.right - half
+      );
+      row.over.y = clamp(
+        canvas.top + level * canvas.height - STAT.lift,
+        canvas.top + row.home.h + STAT.margin,
+        canvas.bottom - STAT.margin
+      );
+    }
+
+    const homeX = panel.left + row.home.x;
+    const homeY = panel.top + row.home.y;
+    // Smoothstep, so it leaves the panel and arrives over the body without a
+    // corner at either end. `lift` itself runs dead straight; the curve is here.
+    const t = row.lift * row.lift * (3 - 2 * row.lift);
+    const x = homeX + (row.over.x - homeX) * t;
+    const y = homeY + (row.over.y - homeY) * t;
+
+    // Whole pixels: the card is small type on a white ground, and half a pixel
+    // of subpixel drift on a body that never stops moving is a shimmer.
+    const placed = `${Math.round(x)},${Math.round(y)},${t.toFixed(3)}`;
+    if (placed === row.placedAt) continue;
+    row.placedAt = placed;
+    // `--lift` grows the card out of the bare row: the stylesheet hangs the
+    // padding, the white ground and the shadow off it, so at 0 what is drawn is
+    // exactly the panel row it left and there is nothing to pop on landing.
+    row.el.style.setProperty('--lift', t.toFixed(3));
+    row.el.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -100%)`;
   }
 }
 
@@ -2607,10 +3590,18 @@ function frame() {
   // nothing below to draw and nothing that could have changed — and the page on
   // top has its own scrolling to do, which should not be sharing a frame with a
   // WebGL draw. `src/pages.js` owns the class.
-  if (document.documentElement.classList.contains('pane-open')) return;
+  if (document.documentElement.classList.contains('pane-open')) {
+    hideStatBars();
+    return;
+  }
 
   const rect = pinSection.getBoundingClientRect();
-  if (rect.bottom <= 0 || rect.top >= window.innerHeight) return; // stage off screen
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+    // The cards are fixed to the viewport, so unlike everything else on the
+    // stage they do not leave with it. Put them away by hand.
+    hideStatBars();
+    return; // stage off screen
+  }
 
   // Meshes finish loading after the constructor resolves, and `onAssets` can
   // land before the viewer is reachable, so claim any newly arrived body here.
@@ -2639,6 +3630,10 @@ function frame() {
   if (performance.now() - lastDrawAt > 8) {
     viewer.renderer.render(viewer.scene, viewer.camera);
   }
+
+  // After the draw, so the cards are placed against the camera the frame was
+  // actually rendered with — `applyFraming` moves it at draw time.
+  updateStatBars();
 }
 
 requestAnimationFrame(frame);

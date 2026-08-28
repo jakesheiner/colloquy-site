@@ -27,37 +27,6 @@
     </header>
 
     <!--
-      The three ways out of the title screen, laid out the way they read: About
-      to the left, History to the right, the piece itself straight down. Held
-      over the title screen and faded off by `src/pages.js` as the reader leaves
-      it, because past that point the page is the piece and these would be
-      furniture over it.
-
-      Outside `main`, with the pages below, so that `overflow-x: clip` on it
-      cannot clip anything fixed.
-    -->
-    <nav class="compass" id="compass" aria-label="Sections">
-      <button type="button" class="compass-cue compass-left" data-open="about">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <span>About</span>
-      </button>
-
-      <button type="button" class="compass-cue compass-down" id="compass-down">
-        <span>The piece</span>
-        <span class="compass-rule"></span>
-      </button>
-
-      <button type="button" class="compass-cue compass-right" data-open="history">
-        <span>History</span>
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
-    </nav>
-
-    <!--
       About. The intro the site used to open on, before the headline took the
       first screen over: it is the same words, moved to a page of their own
       rather than deleted, and it keeps the hero photograph the old homepage

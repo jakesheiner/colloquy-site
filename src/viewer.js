@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { publicUrl } from './base.js';
 
 // ---------------------------------------------------------------------------
 // Catalog. Two scene-graph assemblies (parsed from the JSON schema) plus every
@@ -12,13 +13,13 @@ const SCENES = [
     id: 'sim',
     label: 'Full simulation',
     tag: '3F · 2M · bar',
-    json: '/scenes/colloquy-of-mobiles-virtual-simulation-260705.json',
+    json: publicUrl('scenes/colloquy-of-mobiles-virtual-simulation-260705.json'),
   },
   {
     id: 'env',
     label: 'Environment rung',
     tag: '1F · 2M',
-    json: '/scenes/environment-female-facing-0-and-bar-with-male-facing-0-and-male-facing-180.json',
+    json: publicUrl('scenes/environment-female-facing-0-and-bar-with-male-facing-0-and-male-facing-180.json'),
   },
 ];
 
@@ -214,7 +215,7 @@ function geometryUrl(ref) {
   const path = typeof ref === 'object' ? ref.mesh : ref;
   if (!path) return null;
   const base = path.split('/').pop();
-  return AVAILABLE.has(base) ? `/models/${base}` : null;
+  return AVAILABLE.has(base) ? publicUrl(`models/${base}`) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,7 +339,7 @@ async function loadScene(def) {
 
 async function loadPart(file) {
   showLoading(true);
-  const group = await loadObjModel(`/models/${file}`);
+  const group = await loadObjModel(publicUrl(`models/${file}`));
   const root = new THREE.Group();
   const inst = instanceOf(group, neutralMaterial());
   // frame the part on its own — recenter about its combined bounding box

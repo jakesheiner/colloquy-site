@@ -1,3 +1,5 @@
+import { publicUrl } from './base.js';
+
 // The recording the page plays. This is the ONE place it is named: the page
 // imports it to play, and the scripts in `scripts/` import it to work out which
 // meshes it needs and to build from it.
@@ -30,7 +32,7 @@ export const ORIGINAL_CLIP_URL =
  * both say 126.55s and the player goes by those. Do not size anything off the
  * title.
  */
-export const CLIP_URL = '/clips/new_clip.ndjson.gz';
+export const CLIP_URL = publicUrl('clips/new_clip.ndjson.gz');
 
 /**
  * To play a constructed clip instead — one where the encounter builds towards

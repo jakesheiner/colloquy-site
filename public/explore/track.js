@@ -8,7 +8,7 @@
 // No three.js, no player, no scene. Just numbers: per body, per tick — its
 // behavioural state, its two drive levels, and where it sits around the plinth.
 
-export const CLIP_URL = '/clips/new_clip.ndjson.gz';
+export const CLIP_URL = new URL('../clips/new_clip.ndjson.gz', import.meta.url).href;
 
 // The three behavioural states, mapped to the words the DDO explainer slide uses
 // (Searching / Conversing / Resting) and to the two body colours' neutral greys.

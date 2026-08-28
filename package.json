@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:portfolio": "COLLOQUY_BASE=/colloquy/ vite build"
   },
   "devDependencies": {
     "vite": "^8.1.1"

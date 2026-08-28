@@ -705,6 +705,63 @@ main {
   font-weight: 500;
 }
 
+/* ---------------------------------------------------------------
+   The stat bars — an engaged body's row, lifted out of the readout
+   and flown over the body itself. `updateStatBars()` in main.js
+   moves the element to <body>, writes the transform, and drives
+   `--lift` from 0 (sitting in its cell) to 1 (a card over the
+   piece). Everything that grows along the way is here.
+------------------------------------------------------------------ */
+.drive-row.is-flying {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  --stat-pad-x: 9px;
+  --lift: 0;
+  /* Exactly as wide as the cell it came out of, plus its own padding on top.
+     `--stat-cell` is measured off the panel by `measureStatHome` in main.js;
+     everything is border-box, so the padding added here comes back off again
+     and the *content* — the two bars — stays at the cell width for the whole
+     flight. They are never a different length up there than down here. */
+  width: calc(var(--stat-cell, 215px) + 2 * var(--stat-pad-x) * var(--lift));
+  padding: calc(7px * var(--lift)) calc(var(--stat-pad-x) * var(--lift))
+    calc(8px * var(--lift));
+  /* It is a label on a picture, not a control. */
+  pointer-events: none;
+}
+
+/* The ground the card needs to stay readable over a magenta shell, on a
+   pseudo-element so that the background, the radius and the shadow can all fade
+   up together on one property. At `--lift: 0` there is none of it and the
+   element is pixel-for-pixel the row it left, which is what makes the landing
+   invisible — nothing pops when it rejoins the grid.
+
+   No backdrop-filter: over a WebGL canvas that is a full-frame readback every
+   frame, which is a lot to pay for a card this size. */
+.drive-row.is-flying::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 3px rgba(19, 19, 22, 0.08), 0 6px 18px rgba(19, 19, 22, 0.09);
+  opacity: var(--lift);
+}
+
+/* Nothing else changes. A card is the same row, in a different place — the only
+   things this state adds are the ground and the position. It used to fiddle with
+   the bar height and the gap as well, which made the same body's readout a
+   different shape depending on where you were looking at it. The state word is
+   already inked and bolded by the `[data-state='engaging']` rule above, and a
+   flying card is by definition engaging, so that needs no help either.
+
+   Nothing here is transitioned, either. The transform is rewritten every frame
+   from main.js — it is tracking a body that never stops moving, and a CSS
+   transition on top of that would make the card lag whatever it is labelling.
+   The flight is animated by easing `--lift` in script, not by the compositor. */
+
 /* Narrow: the three bands stay, but the readout cannot hold five units across a
    phone — each cell would be ~60px. It wraps to a grid instead, and the caption
    gives back some size so the frame keeps most of the window. */
@@ -788,114 +845,6 @@ html.pane-open body {
 html.pane-open .site-head {
   opacity: 0;
   transition: opacity 220ms ease;
-}
-
-/* --- the cues on the title screen ------------------------------------------ */
-
-/* Held over the title screen, and faded off it by `pages.js` as the reader
-   leaves. Ink, not a surface: the title screen is white and the scene behind is
-   white wherever the piece is not. */
-.compass {
-  position: fixed;
-  inset: 0;
-  z-index: 5;
-  /* Only the cues are targets. The rest of this is a full-window box sitting
-     over the scene, and it must not swallow anything aimed at it. */
-  pointer-events: none;
-  transition: opacity 200ms ease;
-}
-
-/* Past the title screen it is not just invisible, it is not there. */
-.compass[data-gone] {
-  visibility: hidden;
-}
-
-.compass-cue {
-  position: absolute;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  margin: -8px -10px;
-  border: 0;
-  background: none;
-  color: var(--mute);
-  cursor: pointer;
-  /* Sentence case, and a size up from where it was. Set as spaced small capitals
-     this read as signage — and none of it is signage, it is three words telling
-     you where you can go. Lowercase needs no tracking to be legible and needs a
-     point or two more to hold its own beside the headline. */
-  font: 500 16px/1 var(--condensed);
-  letter-spacing: 0.01em;
-  transition: color 160ms ease;
-}
-
-.compass-cue:hover {
-  color: var(--ink);
-}
-
-.compass-cue:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.compass-cue svg {
-  width: 22px;
-  height: 22px;
-  display: block;
-  transition: transform 160ms ease;
-}
-
-/* The chevron leans the way the page is. */
-.compass-left:hover svg {
-  transform: translateX(-3px);
-}
-
-.compass-right:hover svg {
-  transform: translateX(3px);
-}
-
-.compass-left,
-.compass-right {
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.compass-left {
-  left: clamp(10px, 4vw, 50px);
-}
-
-.compass-right {
-  right: clamp(10px, 4vw, 50px);
-}
-
-/* Straight down, and stacked rather than in a row: the direction is the point,
-   so the label sits above the line that points. */
-.compass-down {
-  left: 50%;
-  bottom: clamp(18px, 5vh, 44px);
-  transform: translateX(-50%);
-  flex-direction: column;
-  gap: 12px;
-}
-
-.compass-rule {
-  width: 1px;
-  height: 44px;
-  background: linear-gradient(var(--ink), transparent);
-  animation: scroll-pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes scroll-pulse {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 /* --- the two sideways pages ------------------------------------------------ */
@@ -1300,21 +1249,6 @@ html.pane-open .site-head {
      legible against once the text runs the full width. The cues stack at the
      foot instead — still the three directions, just written rather than
      pointed. */
-  .compass-left,
-  .compass-right {
-    top: auto;
-    bottom: clamp(18px, 5vh, 44px);
-    transform: none;
-  }
-
-  .compass-down {
-    gap: 8px;
-  }
-
-  .compass-rule {
-    height: 30px;
-  }
-
   /* The scrim on About turns with the layout. Wide, it is a diagonal: the words
      are a column on the left and the photograph is allowed to come up behind
      the empty right of the page. Narrow, there is no empty right — the text
@@ -1344,9 +1278,5 @@ html.pane-open .site-head {
   .pane,
   .pane[data-showing] {
     transition-duration: 1ms;
-  }
-
-  .compass-rule {
-    animation: none;
   }
 }

@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { publicUrl } from './base.js';
 
 // The real geometry, exported from the installation's CAD (inches, Z-up,
 // each body hanging in −Z). These are dropped in behind the driving pivots,
 // scaled to the same real proportions the primitives encoded (see below).
 // The Rhino exports split a body into several `o object_N` sub-meshes, so we
 // keep the whole loaded group rather than a single mesh.
-const MODEL_BASE = '/models/';
+const MODEL_BASE = publicUrl('models/');
 const FEMALE_PARTS = [
   'female-shell-body-260316.obj',
   'female-shell-head-260316.obj',

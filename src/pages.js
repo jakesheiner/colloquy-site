@@ -1,10 +1,11 @@
 /**
- * The site's three pages, and the directions between them.
+ * The site's three pages, and the moves between them.
  *
- * The piece is straight down from the title screen — that is the whole of
- * `main.js`, and it is the page the browser actually scrolls. About is to the
- * left of it and History to the right, and both are held off screen and slid
- * over the site when they are asked for.
+ * The piece is the page the browser actually scrolls — that is the whole of
+ * `main.js`. About and History sit off screen to either side of it and are slid
+ * over the site when they are asked for, which now means by their address
+ * (`#about`, `#history`) or by a link into one: the title screen carries
+ * nothing over it but the headline.
  *
  * Sliding them over rather than laying all three out side by side in one wide
  * scroller is deliberate, and it is the only arrangement that leaves the piece
@@ -21,53 +22,11 @@
  * load — can still read the pages about it.
  */
 
-const compass = document.getElementById('compass');
-const compassDown = document.getElementById('compass-down');
-const titleScreen = document.getElementById('title-screen');
-const pinSection = document.getElementById('pin-section');
-
 const panes = new Map(
   [...document.querySelectorAll('.pane')].map((pane) => [pane.id, pane])
 );
 
 const stillMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-// --- the cues on the title screen --------------------------------------------
-
-/**
- * The three directions, shown while the reader is on the title screen and gone
- * once they are into the piece.
- *
- * Faded off well before the title screen is finished — by a little under half of
- * it — so they have cleared by the time the scene arrives rather than hanging
- * over the top of it. Past that they are `visibility: hidden` as well as
- * transparent, which is what keeps them out of the tab order and off the
- * hit-testing over the scene.
- */
-let compassShown = -1;
-
-function paintCompass() {
-  if (!compass || !titleScreen) return;
-  const run = titleScreen.offsetHeight * 0.45;
-  const t = run > 0 ? Math.min(1, Math.max(0, window.scrollY / run)) : 1;
-  const shown = 1 - t;
-  if (Math.abs(shown - compassShown) < 0.004) return;
-  compassShown = shown;
-  compass.style.opacity = shown.toFixed(3);
-  compass.toggleAttribute('data-gone', shown === 0);
-}
-
-paintCompass();
-window.addEventListener('scroll', paintCompass, { passive: true });
-window.addEventListener('resize', paintCompass);
-
-compassDown?.addEventListener('click', () => {
-  if (!pinSection) return;
-  window.scrollTo({
-    top: pinSection.offsetTop,
-    behavior: stillMotion.matches ? 'auto' : 'smooth',
-  });
-});
 
 // --- opening and closing a page ----------------------------------------------
 
